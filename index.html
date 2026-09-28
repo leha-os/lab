@@ -3,28 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>LEHA.OS — Vanilla Chot</title>
+<title>LEHA.OS</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,700;0,800;0,900;1,400;1,500;1,700;1,800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
-/* Base font load only, user will switch later */
 *{box-sizing:border-box}
 html,body{width:100%;max-width:100vw;overflow-x:hidden;margin:0;padding:0}
-body{font-family:'Be Vietnam Pro',system-ui,sans-serif;transition:background 0.25s ease,color 0.25s ease}
-/* Fix horizontal overflow for category grids */
-#app{width:100%;max-width:100vw;overflow-x:hidden;box-sizing:border-box}
+body{font-family:'Be Vietnam Pro',system-ui,sans-serif;-webkit-font-smoothing:antialiased;transition:background 0.2s,color 0.2s}
+#app{width:100%;max-width:100vw;overflow-x:hidden}
 ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-thumb{background:#E4E4E7;border-radius:999px}
 @keyframes floatBlob{0%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-40px) scale(1.08)}66%{transform:translate(-20px,20px) scale(0.95)}100%{transform:translate(0,0) scale(1)}}
 @keyframes springIn{0%{transform:scale(0.96) translateY(8px);opacity:0}100%{transform:scale(1) translateY(0);opacity:1}}
-.tool-card{animation:springIn 0.5s cubic-bezier(0.34,1.56,0.64,1);backface-visibility:hidden;transform-style:preserve-3d;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1)}
-.tool-card:active{transform:scale(0.97) rotateX(2deg)}
-.tool-card.flipped{transform:rotateY(180deg)}
-/* H1 H2 H3 fix as requested */
-h1,h2,h3{color:#000000;font-style:normal;font-weight:800;line-height:1.2}
+.tool-card{animation:springIn 0.45s cubic-bezier(0.34,1.56,0.64,1);transition:all 0.2s}
+.tool-card:active{transform:scale(0.97)}
+.number-big{font-size:22px;font-weight:900;letter-spacing:-0.03em}
+h1,h2,h3{color:#000000;font-weight:800;line-height:1.15}
 h1 em{color:#7A0A0A;font-style:normal}
-h2 em, h3 em{color:#7A0A0A;font-style:italic}
-h1{font-size:28px} h2{font-size:22px} h3{font-size:18px}
-.number-big{font-size:20px;font-weight:800;letter-spacing:-0.02em}
+h2 em,h3 em{color:#7A0A0A;font-style:italic}
+.preview-item{position:relative;border-radius:12px;overflow:hidden;border:2px solid transparent;transition:all 0.15s}
+.preview-item.selected{border-color:#0A0A0B;box-shadow:0 0 0 2px #0A0A0B}
+.preview-item .check{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid #000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.preview-item.selected .check{background:#000;color:#fff}
 </style>
 </head>
 <body>
@@ -32,99 +33,92 @@ h1{font-size:28px} h2{font-size:22px} h3{font-size:18px}
 <script>
 /*
 KEYWORD MAP - Ctrl+F để tìm nhanh
-THEME_GLOBAL -> màu chung, font, radius, shadow toàn site - QUICK EDIT màu toàn site ở đây
-HEADER_CONFIG -> header hero trong suốt, logo LEHA.OS, không có hình tròn ping
-MENU_CONFIG -> menu filter TẤT CẢ + ALL, gap, radius
-HERO_CONFIG -> hero tiêu đề (nếu có H1 H2 H3) đen thẳng, h2 em h3 em nghiêng đỏ đô
-CARD_ANH_CONFIG -> nhóm ẢNH 8 tools tên ngắn 2-3 chữ viết hoa, font mỏng
-CARD_CHU_CONFIG -> nhóm CHỮ 7 tools
-CARD_TIENICH_CONFIG -> nhóm TIỆN ÍCH 11 tools
-BG_ANIM_CONFIG -> 3 blob blur nền
-TEXT_ANIM_CONFIG -> H1 H2 H3 đen thẳng, em đỏ đô nghiêng
-IMAGE_CONFIG -> xử lý ảnh đồng loạt
-TOOL_ENGINE_CONFIG -> engine xử lý
-renderHeader() -> dựng header trong suốt, xóa hình tròn ping, không icon
-renderMenu() -> menu filter, bỏ chữ DANH MỤC
-renderGroup() -> card danh mục font đậm, tool font mỏng, số 01 02 to
-toolView() -> giao diện trong tools fix màu đều, không trùng nền
-QUICK EDIT: Đổi màu toàn site -> THEME_GLOBAL, Đổi Hero -> HERO_CONFIG, Đổi tên tools -> CARD_*_CONFIG links
+THEME_GLOBAL -> màu chung, font, radius, shadow toàn site
+HEADER_CONFIG -> header trong suốt, logo LEHA.OS (đã bỏ LAB)
+MENU_CONFIG -> filter TẤT CẢ + ALL + nút SỬA/XÓA/THÊM danh mục
+HERO_CONFIG -> H1 H2 H3 đen thẳng em đỏ đô
+CARD_ANH_CONFIG -> nhóm ẢNH
+CARD_CHU_CONFIG -> nhóm CHỮ - thêm tool dấu phẩy, đánh số, đánh lại số
+CARD_TIENICH_CONFIG -> nhóm TIỆN ÍCH - PDF single page dài 10 trang nối 1
+BG_ANIM_CONFIG -> blob
+IMAGE_CONFIG -> HD x100
+PDF_CONFIG -> PDF 10 trang nối 1 dài
+TOOL_ENGINE_CONFIG -> engine
+renderHeader() -> header không có LAB
+renderMenu() -> có SỬA/XÓA/THÊM/CHUYỂN tool/danh mục
+renderGroup() -> có nút sửa danh mục, thêm tool
+toolView() -> preview trước + nút Download
+QUICK EDIT: Đổi màu -> THEME_GLOBAL, Thêm tool -> CARD_*_CONFIG
 */
 
-// // SECTION 0: THEME_GLOBAL - BRIEF: Gom hết màu, font, bo góc, shadow toàn site | Global design tokens
+// // SECTION 0: THEME_GLOBAL - BRIEF: Màu, font, bo góc, shadow toàn site | Global tokens
 // EDITABLE: Chỉnh ở THEME_GLOBAL | Edit at THEME_GLOBAL
 // FIX AT: Search: THEME_GLOBAL
 const THEME_GLOBAL = {
   themes: {
-    light: { bg:'#F2F2F3', paper:'#FFFFFF', paperBlur:'rgba(255,255,255,0.92)', ink:'#0A0A0B', border:'#E4E4E7', borderThin:'#EDEEF1', borderContrast:'rgba(0,0,0,0.06)', muted:'#8A8A8E', labAnh:'#FF3B30', labChu:'#7C3AED', labTienIch:'#F59E0B' },
-    goc: { bg:'#F2F2F3', paper:'#FFFFFF', paperBlur:'rgba(255,255,255,0.92)', ink:'#0A0A0B', border:'#E4E4E7', borderThin:'#EDEEF1', borderContrast:'rgba(0,0,0,0.06)', muted:'#8A8A8E', labAnh:'#FF3B30', labChu:'#7C3AED', labTienIch:'#F59E0B' },
-    mono: { bg:'#FFFFFF', paper:'#FFFFFF', paperBlur:'rgba(255,255,255,0.98)', ink:'#000000', border:'#000000', borderThin:'#000000', borderContrast:'rgba(0,0,0,0.15)', muted:'#666666', labAnh:'#000000', labChu:'#000000', labTienIch:'#000000' },
-    sand: { bg:'#FFF6D6', paper:'#FFFEF2', paperBlur:'rgba(255,254,242,0.92)', ink:'#3D2E00', border:'#F5D78E', borderThin:'#FBE9B0', borderContrast:'rgba(61,46,0,0.08)', muted:'#8A8A8E', labAnh:'#D4A017', labChu:'#B8860B', labTienIch:'#E6B422' },
-    midnight: { bg:'#050E1F', paper:'#0F2440', paperBlur:'rgba(15,36,64,0.92)', ink:'#E6F0FF', border:'#1E3A66', borderThin:'#24467D', borderContrast:'rgba(255,255,255,0.12)', muted:'#7FA0CC', labAnh:'#3B82F6', labChu:'#60A5FA', labTienIch:'#38BDF8' },
-    night: { bg:'#000000', paper:'#1A1A1A', paperBlur:'rgba(26,26,26,0.96)', ink:'#FFFFFF', border:'#2A2A2A', borderThin:'#3A3A3A', borderContrast:'rgba(255,255,255,0.12)', muted:'#AAAAAA', labAnh:'#FFFFFF', labChu:'#E5E5E5', labTienIch:'#CCCCCC' }
+    light: { bg:'#F2F2F3', paper:'#FFFFFF', ink:'#0A0A0B', border:'#E4E4E7', borderThin:'#EDEEF1', muted:'#8A8A8E', labAnh:'#FF3B30', labChu:'#7C3AED', labTienIch:'#F59E0B' },
+    mono: { bg:'#FFFFFF', paper:'#FFFFFF', ink:'#000000', border:'#000000', borderThin:'#000000', muted:'#666666', labAnh:'#000000', labChu:'#000000', labTienIch:'#000000' },
+    sand: { bg:'#FFF6D6', paper:'#FFFEF2', ink:'#3D2E00', border:'#F5D78E', borderThin:'#FBE9B0', muted:'#9A8A6A', labAnh:'#D4A017', labChu:'#B8860B', labTienIch:'#E6B422' },
+    midnight: { bg:'#050E1F', paper:'#0F2440', ink:'#E6F0FF', border:'#1E3A66', borderThin:'#24467D', muted:'#7FA0CC', labAnh:'#3B82F6', labChu:'#60A5FA', labTienIch:'#38BDF8' },
+    night: { bg:'#000000', paper:'#1A1A1A', ink:'#FFFFFF', border:'#2A2A2A', borderThin:'#3A3A3A', muted:'#AAAAAA', labAnh:'#FFFFFF', labChu:'#E5E5E5', labTienIch:'#CCCCCC' }
   },
   font: "'Be Vietnam Pro', system-ui, sans-serif",
-  fontWeight: { header:800, category:800, tool:400, label:700, muted:500 },
+  fontWeight: { header:800, category:800, tool:400 },
   radius: { sm:'10px', md:'14px', lg:'18px', xl:'24px', pill:'999px' },
-  shadow: { card:'0 2px 12px rgba(0,0,0,0.06)', glowRed:'0 0 20px rgba(255,59,48,0.30)', glowViolet:'0 0 20px rgba(124,58,237,0.30)', glowAmber:'0 0 20px rgba(245,158,11,0.30)' },
-  blur: { blob:'64px', opacity:0.16, duration:'22s' },
+  shadow: { card:'0 2px 16px rgba(0,0,0,0.06)', glowRed:'0 0 20px rgba(255,59,48,0.28)', glowViolet:'0 0 20px rgba(124,58,237,0.28)', glowAmber:'0 0 20px rgba(245,158,11,0.28)' },
+  blur: { blob:'64px', opacity:0.13, duration:'22s' },
   motion: { spring:'cubic-bezier(0.34,1.56,0.64,1) 0.55s' }
 };
 
-// // SECTION 1: BG_ANIM_CONFIG - BRIEF: Nền blur 3 blob | Ambient background
+// // SECTION 1: BG_ANIM_CONFIG - BRIEF: Nền blur 3 blob | Background blur
 // EDITABLE: Chỉnh ở BG_ANIM_CONFIG | Edit at BG_ANIM_CONFIG
 // FIX AT: Search: THEME_GLOBAL
-const BG_ANIM_CONFIG = { blobs:3, size:240, blur:'64px', opacity:0.14 };
+const BG_ANIM_CONFIG = { size:260, blur:'72px', opacity:0.12 };
 
-// // SECTION 2: HEADER_CONFIG - BRIEF: Header hero trong suốt, logo, date time | Transparent hero header
+// // SECTION 2: HEADER_CONFIG - BRIEF: Header trong suốt bỏ LAB | Transparent header no LAB
 // EDITABLE: Chỉnh ở HEADER_CONFIG | Edit at HEADER_CONFIG
 // FIX AT: Search: THEME_GLOBAL
-const HEADER_CONFIG = { h:72, pad:'14px 16px', logo:'LEHA.OS', storageKey:'leha_theme_v2', defaultTheme:'light', transparent:true };
+const HEADER_CONFIG = { h:72, pad:'14px 16px', logo:'LEHA.OS', storageKey:'leha_theme_v2', defaultTheme:'light' };
 
-// // SECTION 3: MENU_CONFIG - BRIEF: Filter TẤT CẢ + ALL | Filter bar
+// // SECTION 3: MENU_CONFIG - BRIEF: Filter + quản lý danh mục | Filter + category manager
 // EDITABLE: Chỉnh ở MENU_CONFIG | Edit at MENU_CONFIG
 // FIX AT: Search: THEME_GLOBAL
 const MENU_CONFIG = {
-  storageKey:'leha_cats_v2', defaultSort:'TẤT CẢ', defaultCat:'ALL',
-  row1:{ label:'SẮP XẾP', options:['TẤT CẢ','MỚI THÊM','A→Z'] },
+  storageKey:'leha_cats_v2', toolsKey:'leha_tools_v3', defaultSort:'TẤT CẢ', defaultCat:'ALL',
+  row1:{ options:['TẤT CẢ','MỚI THÊM','A→Z'] },
   row2:{ defaultOptions:['ALL','ẢNH','CHỮ','TIỆN ÍCH'] },
-  layout:{ gap:6, radius:'999px', padY:7, padX:12, fontSize:11, fontWeight:500, labelSize:9, labelWeight:800 }
+  layout:{ gap:6, radius:'999px', padY:7, padX:12, fontSize:11 }
 };
 
-// // SECTION 4: HERO_CONFIG - BRIEF: H1 H2 H3 đen thẳng, em đỏ đô nghiêng | Hero headings
+// // SECTION 4: HERO_CONFIG - BRIEF: H1 H2 H3 đen thẳng em đỏ đô | Headings
 // EDITABLE: Chỉnh ở HERO_CONFIG | Edit at HERO_CONFIG
 // FIX AT: Search: THEME_GLOBAL
-const HERO_CONFIG = {
-  h1:{ color:'#000000', size:'28px', weight:800, style:'normal', emColor:'#7A0A0A', emStyle:'normal' },
-  h2:{ color:'#000000', size:'22px', weight:800, style:'normal', emColor:'#7A0A0A', emStyle:'italic' },
-  h3:{ color:'#000000', size:'18px', weight:800, style:'normal', emColor:'#7A0A0A', emStyle:'italic' }
-};
+const HERO_CONFIG = { h1:{color:'#000000'}, h2:{color:'#000000', emColor:'#7A0A0A'}, h3:{color:'#000000', emColor:'#7A0A0A'} };
 
-// // SECTION 5: CARD_ANH_CONFIG - BRIEF: Nhóm ẢNH 8 tools tên ngắn 2-3 chữ VIẾT HOA | ANH group short names
+// // SECTION 5: CARD_ANH_CONFIG - BRIEF: Nhóm ẢNH 6 tools HD x100 | ANH group HD
 // EDITABLE: Chỉnh ở CARD_ANH_CONFIG | Edit at CARD_ANH_CONFIG
 // FIX AT: Search: THEME_GLOBAL
 const CARD_ANH_CONFIG = {
   id:'anh', label:'ẢNH', dot:'labAnh', glow:'glowRed',
-  layout:{ cardH:'48px', pad:'12px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'14px' },
-  tech:{ collapsible:true, defaultOpen:false, spring:THEME_GLOBAL.motion.spring },
+  layout:{ cardH:'54px', pad:'14px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'16px' },
+  tech:{ defaultOpen:false },
   links:[
     {num:'01', name:'NÉN ẢNH', id:'nen-dong-loat', addedAt:6},
     {num:'02', name:'CẮT ẢNH', id:'cat-dong-loat', addedAt:7},
     {num:'03', name:'CHÈN LOGO', id:'chen-logo-goc', addedAt:8},
     {num:'04', name:'ĐỔI SIZE', id:'chen-nen-size', addedAt:5},
     {num:'05', name:'ĐỔI ĐỊNH DẠNG', id:'doi-dinh-dang', addedAt:4},
-    {num:'06', name:'TÁCH NỀN', id:'tach-nen', addedAt:2},
-    {num:'07', name:'TĂNG NÉT', id:'tang-net', addedAt:9},
-    {num:'08', name:'CHÈN CHỮ', id:'chen-chu', addedAt:17}
+    {num:'06', name:'TĂNG NÉT', id:'tang-net', addedAt:9}
   ]
 };
 
-// // SECTION 6: CARD_CHU_CONFIG - BRIEF: Nhóm CHỮ 7 tools tên ngắn VIẾT HOA | CHU group
+// // SECTION 6: CARD_CHU_CONFIG - BRIEF: Nhóm CHỮ 9 tools gồm dấu phẩy đánh số | CHU group with comma numbering
 // EDITABLE: Chỉnh ở CARD_CHU_CONFIG | Edit at CARD_CHU_CONFIG
 // FIX AT: Search: THEME_GLOBAL
 const CARD_CHU_CONFIG = {
   id:'chu', label:'CHỮ', dot:'labChu', glow:'glowViolet',
-  layout:{ cardH:'48px', pad:'12px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'14px' },
-  tech:{ collapsible:true, defaultOpen:false, spring:THEME_GLOBAL.motion.spring },
+  layout:{ cardH:'54px', pad:'14px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'16px' },
+  tech:{ defaultOpen:false },
   links:[
     {num:'01', name:'ĐẾM CHỮ', id:'dem-chu', addedAt:2},
     {num:'02', name:'CHỮ ĐẬM', id:'chu-dam', addedAt:9},
@@ -132,108 +126,121 @@ const CARD_CHU_CONFIG = {
     {num:'04', name:'TÌM THAY THẾ', id:'tim-thay', addedAt:9},
     {num:'05', name:'TẠO QR', id:'qr-chu', addedAt:12},
     {num:'06', name:'CHỮ KÝ EMAIL', id:'chu-ky', addedAt:13},
-    {num:'07', name:'XÓA TRỐNG', id:'xoa-trong', addedAt:2}
+    {num:'07', name:'THÊM DẤU PHẨY', id:'them-phay', addedAt:21},
+    {num:'08', name:'ĐÁNH SỐ', id:'danh-so', addedAt:22},
+    {num:'09', name:'ĐÁNH LẠI SỐ', id:'danh-lai-so', addedAt:23}
   ]
 };
 
-// // SECTION 7: CARD_TIENICH_CONFIG - BRIEF: Nhóm TIỆN ÍCH 11 tools tên ngắn VIẾT HOA | Utility group
+// // SECTION 7: CARD_TIENICH_CONFIG - BRIEF: Nhóm TIỆN ÍCH 7 tools | Utility group
 // EDITABLE: Chỉnh ở CARD_TIENICH_CONFIG | Edit at CARD_TIENICH_CONFIG
 // FIX AT: Search: THEME_GLOBAL
 const CARD_TIENICH_CONFIG = {
   id:'tienich', label:'TIỆN ÍCH', dot:'labTienIch', glow:'glowAmber',
-  layout:{ cardH:'48px', pad:'12px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'14px' },
-  tech:{ collapsible:true, defaultOpen:false, spring:THEME_GLOBAL.motion.spring },
+  layout:{ cardH:'54px', pad:'14px', gap:'8px', colsMobile:2, colsDesktop:3, radius:'16px' },
+  tech:{ defaultOpen:false },
   links:[
-    {num:'01', name:'MÁY TÍNH', id:'may-tinh', addedAt:1},
-    {num:'02', name:'PDF NÉT', id:'pdf-net', addedAt:3},
-    {num:'03', name:'TÍNH TUỔI', id:'tuoi', addedAt:11},
-    {num:'04', name:'LỊCH VIỆT', id:'lich-vn', addedAt:12},
-    {num:'05', name:'ĐỔI ĐƠN VỊ', id:'doi-don-vi', addedAt:15},
-    {num:'06', name:'ĐẾM CHỮ', id:'dem-chu-2', addedAt:2},
-    {num:'07', name:'RÚT GỌN LINK', id:'rut-gon', addedAt:16},
-    {num:'08', name:'TẠO MẬT KHẨU', id:'mat-khau', addedAt:8},
-    {num:'09', name:'GHI CHÚ', id:'ghi-chu', addedAt:11},
-    {num:'10', name:'GIẢM GIÁ', id:'giam-gia', addedAt:1},
-    {num:'11', name:'TÍNH BMI', id:'bmi', addedAt:3}
+    {num:'01', name:'PDF NÉT', id:'pdf-net', addedAt:3},
+    {num:'02', name:'ĐỔI TÊN LOẠT', id:'doi-ten-loat', addedAt:20},
+    {num:'03', name:'MÁY TÍNH', id:'may-tinh', addedAt:1},
+    {num:'04', name:'TÍNH TUỔI', id:'tuoi', addedAt:11},
+    {num:'05', name:'LỊCH VIỆT', id:'lich-vn', addedAt:12},
+    {num:'06', name:'ĐỔI ĐƠN VỊ', id:'doi-don-vi', addedAt:15},
+    {num:'07', name:'GHI CHÚ', id:'ghi-chu', addedAt:11}
   ]
 };
 
-// // SECTION 8: TOOL_ENGINE_CONFIG - BRIEF: Engine config | Engine
+// // SECTION 8: IMAGE_CONFIG - BRIEF: Ảnh HD x100 | HD config
+// EDITABLE: Chỉnh ở IMAGE_CONFIG | Edit at IMAGE_CONFIG
+// FIX AT: Search: THEME_GLOBAL
+const IMAGE_CONFIG = { quality:1.0, maxWidth:8000 };
+
+// // SECTION 9: PDF_CONFIG - BRIEF: PDF 10 trang nối 1 dài single page | PDF long single page
+// EDITABLE: Chỉnh ở PDF_CONFIG | Edit at PDF_CONFIG
+// FIX AT: Search: THEME_GLOBAL
+const PDF_CONFIG = { longMode:'singlePage', gap:0 };
+
+// // SECTION 10: TOOL_ENGINE_CONFIG - BRIEF: Engine | Engine
 // EDITABLE: Chỉnh ở TOOL_ENGINE_CONFIG | Edit at TOOL_ENGINE_CONFIG
 // FIX AT: Search: THEME_GLOBAL
-const TOOL_ENGINE_CONFIG = { qrSize:320 };
+const TOOL_ENGINE_CONFIG = { v:'LAB_V4_FIX' };
 
-// // SECTION 9: COMPONENT - BRIEF: Render all + fix overflow + tools UI đều màu | Build UI
+// // SECTION 11: COMPONENT - BRIEF: Render + quản lý danh mục/tool + preview + download | Build UI with manager
 // EDITABLE: Chỉnh ở đây | Edit at here
 // FIX AT: Search: THEME_GLOBAL
 let currentThemeName = (()=>{ try{ return localStorage.getItem(HEADER_CONFIG.storageKey)||HEADER_CONFIG.defaultTheme; }catch{ return HEADER_CONFIG.defaultTheme; } })();
 function getT(){ return THEME_GLOBAL.themes[currentThemeName]||THEME_GLOBAL.themes.light; }
 function getTime(){ const d=new Date(); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
 function getFullDate(){ const d=new Date(); return d.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'}).toUpperCase(); }
-let state={ sort: MENU_CONFIG.defaultSort, cat: MENU_CONFIG.defaultCat, open:{ anh:false, chu:false, tienich:false }, cats:[...MENU_CONFIG.row2.defaultOptions], currentTool:null };
+let state={ sort:'TẤT CẢ', cat:'ALL', open:{ anh:false, chu:false, tienich:false }, cats:[...MENU_CONFIG.row2.defaultOptions], currentTool:null, selectedFiles:[], processedBlobs:[] };
+
 function saveCats(){ try{ localStorage.setItem(MENU_CONFIG.storageKey, JSON.stringify(state.cats)); }catch{} }
 function loadCats(){ try{ const v=JSON.parse(localStorage.getItem(MENU_CONFIG.storageKey)); if(Array.isArray(v)&&v.length) state.cats=v; }catch{} }
+function saveTools(){
+  try{
+    const all = { anh:CARD_ANH_CONFIG.links, chu:CARD_CHU_CONFIG.links, tienich:CARD_TIENICH_CONFIG.links };
+    localStorage.setItem(MENU_CONFIG.toolsKey, JSON.stringify(all));
+  }catch{}
+}
+function loadTools(){
+  try{
+    const v=JSON.parse(localStorage.getItem(MENU_CONFIG.toolsKey));
+    if(v){ if(v.anh) CARD_ANH_CONFIG.links=v.anh; if(v.chu) CARD_CHU_CONFIG.links=v.chu; if(v.tienich) CARD_TIENICH_CONFIG.links=v.tienich; }
+  }catch{}
+}
 
 function renderBG(){
   const T=getT();
   return `<div style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden">
-    <div style="position:absolute;width:${BG_ANIM_CONFIG.size}px;height:${BG_ANIM_CONFIG.size}px;left:8%;top:10%;background:${T.labAnh};filter:blur(${BG_ANIM_CONFIG.blur});opacity:${BG_ANIM_CONFIG.opacity};border-radius:50%;animation:floatBlob ${THEME_GLOBAL.blur.duration} infinite ease-in-out"></div>
-    <div style="position:absolute;width:${BG_ANIM_CONFIG.size}px;height:${BG_ANIM_CONFIG.size}px;left:58%;top:16%;background:${T.labChu};filter:blur(${BG_ANIM_CONFIG.blur});opacity:${BG_ANIM_CONFIG.opacity};border-radius:50%;animation:floatBlob ${THEME_GLOBAL.blur.duration} infinite ease-in-out 2s"></div>
-    <div style="position:absolute;width:${BG_ANIM_CONFIG.size}px;height:${BG_ANIM_CONFIG.size}px;left:32%;top:52%;background:${T.labTienIch};filter:blur(${BG_ANIM_CONFIG.blur});opacity:${BG_ANIM_CONFIG.opacity};border-radius:50%;animation:floatBlob ${THEME_GLOBAL.blur.duration} infinite ease-in-out 4s"></div>
+    <div style="position:absolute;width:260px;height:260px;left:10%;top:12%;background:${T.labAnh};filter:blur(72px);opacity:0.12;border-radius:50%;animation:floatBlob 22s infinite ease-in-out"></div>
+    <div style="position:absolute;width:260px;height:260px;left:60%;top:18%;background:${T.labChu};filter:blur(72px);opacity:0.12;border-radius:50%;animation:floatBlob 22s infinite ease-in-out 2s"></div>
+    <div style="position:absolute;width:260px;height:260px;left:35%;top:55%;background:${T.labTienIch};filter:blur(72px);opacity:0.12;border-radius:50%;animation:floatBlob 22s infinite ease-in-out 4s"></div>
   </div>`;
 }
 
 function renderHeader(timeStr,dateStr){
   const T=getT();
-  const opts=Object.keys(THEME_GLOBAL.themes).map(k=>`<button data-theme="${k}" style="width:100%;padding:10px 12px;border-radius:${THEME_GLOBAL.radius.sm};border:1px solid ${currentThemeName===k?T.ink:T.borderThin};background:${currentThemeName===k?T.ink:T.paper};color:${currentThemeName===k?T.paper:T.ink};font-size:11px;font-weight:700;cursor:pointer;text-align:left;box-sizing:border-box">${k.toUpperCase()} ${k===currentThemeName?'✓':''}</button>`).join('');
-  // Hero trong suốt - xóa hình tròn ping bên trái, giữ LEHA.OS
-  return `<div style="min-height:${HEADER_CONFIG.h}px;display:flex;flex-direction:column;gap:8px;padding:${HEADER_CONFIG.pad};border-radius:${THEME_GLOBAL.radius.lg};background:transparent;border:1px solid ${T.borderThin};box-shadow:none;position:sticky;top:12px;z-index:20;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+  const opts=Object.keys(THEME_GLOBAL.themes).map(k=>`<button data-theme="${k}" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid ${currentThemeName===k?T.ink:T.borderThin};background:${currentThemeName===k?T.ink:T.paper};color:${currentThemeName===k?T.paper:T.ink};font-size:11px;font-weight:700;cursor:pointer;text-align:left">${k.toUpperCase()}</button>`).join('');
+  return `<div style="min-height:72px;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:18px;background:transparent;border:1px solid ${T.borderThin};backdrop-filter:blur(10px);position:sticky;top:12px;z-index:20">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0" onclick="state.currentTool=null;renderApp()">
-        <span style="font-weight:${THEME_GLOBAL.fontWeight.header};font-size:20px;letter-spacing:-0.03em;color:${T.ink}">${HEADER_CONFIG.logo}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
-        <div style="position:relative">
-          <button id="themeToggle" style="padding:7px 12px;border-radius:${THEME_GLOBAL.radius.pill};border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-size:11px;font-weight:700;cursor:pointer;box-sizing:border-box">${currentThemeName.toUpperCase()}</button>
-          <div id="themeMenu" style="display:none;position:absolute;top:38px;right:0;background:${T.paper};border:1px solid ${T.borderThin};border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.25);padding:6px;min-width:160px;z-index:99;flex-direction:column;gap:4px;box-sizing:border-box">${opts}</div>
-        </div>
-        ${state.currentTool?`<button onclick="state.currentTool=null;renderApp()" style="padding:7px 12px;border-radius:999px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-size:11px;font-weight:700;cursor:pointer;box-sizing:border-box">QUAY LẠI</button>`:''}
-      </div>
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="state.currentTool=null;renderApp()"><span style="font-weight:800;font-size:20px;letter-spacing:-0.03em;color:${T.ink}">${HEADER_CONFIG.logo}</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="position:relative"><button id="themeToggle" style="padding:7px 14px;border-radius:999px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-size:11px;font-weight:700;cursor:pointer">${currentThemeName.toUpperCase()}</button><div id="themeMenu" style="display:none;position:absolute;top:38px;right:0;background:${T.paper};border:1px solid ${T.borderThin};border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.2);padding:6px;min-width:160px;z-index:99;flex-direction:column;gap:4px">${opts}</div></div>${state.currentTool?`<button onclick="state.currentTool=null;renderApp()" style="padding:7px 14px;border-radius:999px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-size:11px;font-weight:700;cursor:pointer">QUAY LẠI</button>`:''}</div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:${T.ink};background:${T.paper};border:1px solid ${T.borderThin};padding:5px 12px;border-radius:999px;box-sizing:border-box;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dateStr}</span>
-      <span style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:${T.paper};background:${T.ink};padding:5px 12px;border-radius:999px;box-sizing:border-box">${timeStr}</span>
-    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:${T.ink};background:${T.paper};border:1px solid ${T.borderThin};padding:5px 12px;border-radius:999px">${dateStr}</span><span style="font-size:11px;font-weight:700;color:${T.paper};background:${T.ink};padding:5px 12px;border-radius:999px">${timeStr}</span></div>
   </div>`;
 }
 
-function pill(active){ const T=getT(); return `display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box;border-radius:${MENU_CONFIG.layout.radius};padding:${MENU_CONFIG.layout.padY}px ${MENU_CONFIG.layout.padX}px;font-size:${MENU_CONFIG.layout.fontSize}px;font-weight:${MENU_CONFIG.layout.fontWeight};cursor:pointer;user-select:none;transition:all 0.15s ease;border:1px solid ${active?T.ink:T.borderThin};background:${active?T.ink:T.paper};color:${active?T.paper:T.ink};max-width:100%;overflow:hidden;text-overflow:ellipsis`; }
+function pill(active){ const T=getT(); return `display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid ${active?T.ink:T.borderThin};background:${active?T.ink:T.paper};color:${active?T.paper:T.ink};`; }
 
 function renderMenu(){
-  const T=getT(); loadCats();
+  const T=getT(); loadCats(); loadTools();
   const row1 = MENU_CONFIG.row1.options.map(o=>`<button style="${pill(state.sort===o)}" data-sort="${o}">${o}</button>`).join('');
   const row2 = state.cats.map(o=>`<button style="${pill(state.cat===o)}" data-cat="${o}" data-catname="${o}">${o}</button>`).join('');
-  return `<div style="border-radius:${THEME_GLOBAL.radius.lg};background:${T.paper};border:1px solid ${T.borderThin};box-shadow:${THEME_GLOBAL.shadow.card};padding:10px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;width:100%;overflow:hidden">
-    <div style="display:flex;gap:${MENU_CONFIG.layout.gap}px;flex-wrap:wrap;width:100%;box-sizing:border-box">${row1}</div>
-    <div style="height:1px;background:${T.borderThin};width:100%"></div>
-    <div style="display:flex;gap:${MENU_CONFIG.layout.gap}px;flex-wrap:wrap;width:100%;box-sizing:border-box">${row2}<button style="${pill(false)};opacity:0.6" id="addCat">+ THÊM</button></div>
+  return `<div style="border-radius:18px;background:${T.paper};border:1px solid ${T.borderThin};box-shadow:0 2px 16px rgba(0,0,0,0.06);padding:12px;display:flex;flex-direction:column;gap:10px;width:100%;overflow:hidden">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:${T.muted};margin-right:4px">SẮP XẾP</span>${row1}</div>
+    <div style="height:1px;background:${T.borderThin}"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:9px;font-weight:800;letter-spacing:0.08em;color:${T.muted}">DANH MỤC</span>${row2}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button id="addCat" style="${pill(false)};font-size:10px">+ DANH MỤC</button><button id="manageCats" style="${pill(false)};font-size:10px">SỬA/XÓA</button></div></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button id="addToolBtn" style="${pill(false)};font-size:10px;background:${T.ink};color:${T.paper};border-color:${T.ink}">+ THÊM TOOL</button><button id="resetTools" style="${pill(false)};font-size:10px">RESET</button><span style="font-size:10px;color:${T.muted};align-self:center">Nhấp đúp tên danh mục để đổi tên • Nhấp đúp tool để sửa/xóa/chuyển</span></div>
   </div>`;
 }
 
 function renderGroup(group, tools){
   const T=getT(); const isOpen=state.open[group.id]; const dot=T[group.dot]; const glow=THEME_GLOBAL.shadow[group.glow];
-  // Fix overflow: grid with minmax 0, cards box-sizing, font weights
-  const grid=tools.map(t=>`<div class="tool-card" data-tool-id="${t.id}" style="min-width:0;width:100%;height:${group.layout.cardH};display:flex;align-items:center;gap:8px;padding:0 ${group.layout.pad};border-radius:${group.layout.radius};background:${T.paper};border:1px solid ${T.borderThin};box-shadow:${THEME_GLOBAL.shadow.card};cursor:pointer;box-sizing:border-box;overflow:hidden">
-    <span class="number-big" style="font-size:18px;font-weight:800;color:${T.muted};flex-shrink:0;min-width:28px">${t.num||''}</span>
-    <span style="font-size:11px;font-weight:${THEME_GLOBAL.fontWeight.tool};color:${T.ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-transform:uppercase;letter-spacing:0.01em">${t.name}</span>
-    <span style="font-size:10px;color:${T.muted};flex-shrink:0">↗</span>
+  const grid=tools.map(t=>`<div class="tool-card" data-tool-id="${t.id}" data-group="${group.id}" style="min-width:0;width:100%;height:${group.layout.cardH};display:flex;align-items:center;gap:8px;padding:0 8px 0 ${group.layout.pad};border-radius:${group.layout.radius};background:${T.paper};border:1px solid ${T.borderThin};box-shadow:0 2px 16px rgba(0,0,0,0.06);cursor:pointer;overflow:hidden;position:relative">
+    <span class="number-big" style="color:${T.muted};min-width:28px">${t.num||''}</span>
+    <span style="font-size:12px;font-weight:400;color:${T.ink};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:0.02em">${t.name}</span>
+    <button data-edit="${t.id}" data-group="${group.id}" style="width:28px;height:28px;border-radius:999px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer">⋮</button>
+    <span style="font-size:10px;color:${T.muted};margin-left:2px">↗</span>
   </div>`).join('');
-  return `<div style="display:flex;flex-direction:column;gap:8px;width:100%;box-sizing:border-box;overflow:hidden">
-    <button data-toggle="${group.id}" style="height:40px;min-width:0;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-radius:${THEME_GLOBAL.radius.md};background:${T.paper};border:1px solid ${T.borderThin};box-shadow:${THEME_GLOBAL.shadow.card};cursor:pointer;box-sizing:border-box;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden"><span style="width:10px;height:10px;border-radius:50%;background:${dot};box-shadow:${glow};display:inline-block;flex-shrink:0"></span><span style="font-size:13px;font-weight:${THEME_GLOBAL.fontWeight.category};letter-spacing:0.02em;color:${T.ink};text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${group.label}</span><span style="font-size:10px;font-weight:700;color:${T.muted};border:1px solid ${T.borderThin};padding:2px 7px;border-radius:999px;flex-shrink:0">${tools.length}</span></div>
-      <span style="font-size:12px;color:${T.ink};flex-shrink:0;transform:rotate(${isOpen?0:-90}deg);transition:transform 0.2s">▼</span>
+  return `<div style="display:flex;flex-direction:column;gap:8px;width:100%;overflow:hidden">
+    <button data-toggle="${group.id}" style="height:44px;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-radius:14px;background:${T.paper};border:1px solid ${T.borderThin};box-shadow:0 2px 16px rgba(0,0,0,0.06);cursor:pointer">
+      <div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:${dot};box-shadow:${glow};display:inline-block"></span><span style="font-size:13px;font-weight:800;letter-spacing:0.03em;color:${T.ink};text-transform:uppercase">${group.label}</span><span style="font-size:10px;font-weight:700;color:${T.muted};border:1px solid ${T.borderThin};padding:2px 7px;border-radius:999px">${tools.length}</span></div>
+      <span style="font-size:12px;color:${T.ink};transform:rotate(${isOpen?0:-90}deg);transition:0.2s">▼</span>
     </button>
-    <div style="display:${isOpen?'grid':'none'};grid-template-columns:repeat(${group.layout.colsMobile},minmax(0,1fr));gap:${group.layout.gap};padding:2px;width:100%;box-sizing:border-box;overflow:hidden">${grid}</div>
+    <div style="display:${isOpen?'grid':'none'};grid-template-columns:repeat(${group.layout.colsMobile},minmax(0,1fr));gap:8px;width:100%">${grid}</div>
   </div>`;
 }
 
@@ -250,234 +257,548 @@ function filterTools(){
 
 function toolView(id){
   const T=getT();
-  // Fix tool UI: đều màu, không trùng nền, input có paper + ink + border
-  const inputStyle=`width:100%;padding:12px;border-radius:${THEME_GLOBAL.radius.md};border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};box-sizing:border-box;font-size:13px`;
-  const btnPrimary=`padding:12px 18px;border-radius:${THEME_GLOBAL.radius.pill};background:${T.ink};color:${T.paper};font-weight:700;cursor:pointer;border:1px solid ${T.ink};box-sizing:border-box`;
-  const btnSecondary=`padding:12px 18px;border-radius:${THEME_GLOBAL.radius.pill};background:${T.paper};color:${T.ink};border:1px solid ${T.borderThin};cursor:pointer;font-weight:600;box-sizing:border-box`;
-  const wrap=(title,inner)=>`<div style="border-radius:${THEME_GLOBAL.radius.lg};background:${T.paper};border:1px solid ${T.borderThin};box-shadow:${THEME_GLOBAL.shadow.card};padding:16px;box-sizing:border-box;width:100%;overflow:hidden;animation:springIn 0.45s cubic-bezier(0.34,1.56,0.64,1)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;flex-wrap:wrap"><b style="font-size:14px;font-weight:800;color:${T.ink};text-transform:uppercase;letter-spacing:0.02em">${title}</b><button onclick="state.currentTool=null;renderApp()" style="${btnSecondary};padding:7px 12px;font-size:11px">ĐÓNG</button></div>${inner}</div>`;
+  const inputStyle=`width:100%;padding:13px 14px;border-radius:14px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};box-sizing:border-box;font-size:13px;outline:none`;
+  const btnPrimary=`padding:13px 20px;border-radius:999px;background:${T.ink};color:${T.paper};font-weight:800;cursor:pointer;border:1px solid ${T.ink};box-sizing:border-box;letter-spacing:0.02em`;
+  const btnSec=`padding:12px 18px;border-radius:999px;background:${T.paper};color:${T.ink};border:1px solid ${T.borderThin};cursor:pointer;font-weight:600;box-sizing:border-box`;
+  const cardInner=`border:1px solid ${T.borderThin};background:${T.paper};border-radius:14px;padding:14px;box-sizing:border-box`;
+  const wrap=(title,inner)=>`<div style="border-radius:18px;background:${T.paper};border:1px solid ${T.borderThin};box-shadow:0 2px 16px rgba(0,0,0,0.06);padding:18px;box-sizing:border-box;width:100%;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px"><div style="display:flex;align-items:center;gap:10px"><span style="width:8px;height:8px;border-radius:50%;background:${T.ink};display:inline-block"></span><b style="font-size:14px;font-weight:900;color:${T.ink};text-transform:uppercase;letter-spacing:0.04em">${title}</b><span style="font-size:9px;font-weight:700;color:${T.muted};border:1px solid ${T.borderThin};padding:3px 8px;border-radius:999px">PRO • HD</span></div><button onclick="state.currentTool=null;renderApp()" style="${btnSec};padding:8px 14px;font-size:11px">ĐÓNG</button></div>${inner}</div>`;
 
-  if(['nen-dong-loat','doi-dinh-dang','chen-nen-size','tach-nen','tang-net','cat-dong-loat','chen-logo-goc','chen-chu'].includes(id)){
-    return wrap(id.replace(/-/g,' ').toUpperCase(), `<div style="display:flex;flex-direction:column;gap:12px">
-      <input type="file" id="imgIn" multiple accept="image/*" style="${inputStyle}">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <label style="font-size:11px;color:${T.ink};display:flex;align-items:center;gap:6px">Quality <input type="range" id="qRange" min="0.1" max="1" step="0.1" value="0.75" oninput="document.getElementById('qVal').textContent=this.value" style="accent-color:${T.ink}"> <b id="qVal" style="color:${T.ink}">0.75</b></label>
-        ${id==='chen-nen-size'?`<select id="sizePreset" style="${inputStyle};width:auto;min-width:140px"><option value="1:1">1:1 VUÔNG</option><option value="3:4">3:4</option><option value="4:5">4:5 IG</option><option value="9:16">9:16 STORY</option><option value="original">GIỮ GỐC</option></select><input type="color" id="bgColor" value="#ffffff" style="width:48px;height:38px;border-radius:8px;border:1px solid ${T.borderThin};padding:2px;background:${T.paper}">`:''}
-        ${id==='doi-dinh-dang'?`<select id="outFormat" style="${inputStyle};width:auto"><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WEBP</option></select>`:''}
-        ${id==='cat-dong-loat'?`<select id="cropShape" style="${inputStyle};width:auto"><option value="square">VUÔNG</option><option value="circle">TRÒN</option></select>`:''}
+  // ẢNH tools with preview + download
+  if(['nen-dong-loat','cat-dong-loat','chen-logo-goc','chen-nen-size','doi-dinh-dang','tang-net'].includes(id)){
+    return wrap(id.replace(/-/g,' ').toUpperCase(), `<div style="display:flex;flex-direction:column;gap:14px">
+      <div style="${cardInner}"><div style="font-size:11px;font-weight:800;letter-spacing:0.08em;margin-bottom:8px;color:${T.ink}">CHỌN ẢNH / FOLDER - XEM TRƯỚC ĐỂ CHỌN</div>
+        <input type="file" id="imgIn" multiple accept="image/*" style="${inputStyle}">
+        <input type="file" id="imgInFolder" multiple webkitdirectory directory style="${inputStyle};margin-top:8px">
+        <div id="filePreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px"></div>
       </div>
-      ${id==='chen-logo-goc'?`<input type="file" id="logoIn" accept="image/*" style="${inputStyle}">`:''}
-      ${id==='chen-chu'?`<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="textOnImg" placeholder="Nhập chữ..." style="flex:1;${inputStyle}"><input type="color" id="textColor" value="#ffffff" style="width:48px;height:38px;border-radius:8px;border:1px solid ${T.borderThin};background:${T.paper}"></div>`:''}
-      <button onclick="processImage('${id}')" style="${btnPrimary}">XỬ LÝ ĐỒNG LOẠT</button>
-      <div id="imgOut" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;width:100%;box-sizing:border-box"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="font-size:11px;display:flex;align-items:center;gap:6px">QUALITY <input type="range" id="qRange" min="0.8" max="1" step="0.05" value="1" oninput="document.getElementById('qVal').textContent=(this.value*100).toFixed(0)+'%'"> <b id="qVal">100%</b></label>
+        ${id==='chen-nen-size'?`<select id="sizePreset" style="${inputStyle};width:auto"><option value="1:1">1:1 2048</option><option value="3:4">3:4 1536x2048</option><option value="original">GIỮ GỐC HD</option></select><input type="color" id="bgColor" value="#ffffff" style="width:48px;height:42px;border-radius:10px;border:1px solid ${T.borderThin};background:${T.paper}">`:''}
+        ${id==='doi-dinh-dang'?`<select id="outFormat" style="${inputStyle};width:auto"><option value="image/png">PNG 100%</option><option value="image/jpeg">JPG 100%</option><option value="image/webp">WEBP 100%</option></select>`:''}
+        ${id==='cat-dong-loat'?`<select id="cropShape" style="${inputStyle};width:auto"><option value="square">VUÔNG HD</option><option value="circle">TRÒN HD</option></select>`:''}
+      </div>
+      ${id==='chen-logo-goc'?`<div style="${cardInner}"><div style="font-size:11px;font-weight:800;margin-bottom:8px">LOGO - GIỮ SIZE GỐC - FOLDER 1 LẦN</div><input type="file" id="logoIn" accept="image/*" style="${inputStyle}"><div style="display:flex;gap:8px;margin-top:8px"><select id="logoPos" style="${inputStyle};width:auto"><option value="br">PHẢI DƯỚI</option><option value="bl">TRÁI DƯỚI</option><option value="center">GIỮA</option></select><input type="range" id="logoSize" min="0.05" max="0.4" step="0.02" value="0.18"></div></div>`:''}
+      <div style="display:flex;gap:8px"><button onclick="processImageHD('${id}')" style="${btnPrimary}">XỬ LÝ ĐÃ CHỌN</button><button id="downloadAllBtn" style="${btnSec};display:none">TẢI TẤT CẢ</button></div>
+      <div id="imgOut" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
     </div>`);
   }
 
-  if(['dem-chu','dem-chu-2','xoa-trong','chu-dam','hoa-thuong','tim-thay'].includes(id)){
+  if(['dem-chu','chu-dam','hoa-thuong','tim-thay','them-phay','danh-so','danh-lai-so'].includes(id)){
+    if(id==='chu-dam'){
+      return wrap('CHỮ ĐẬM - 6 KIỂU + COPY', `<div style="display:flex;flex-direction:column;gap:12px"><div style="${cardInner}"><input id="boldIn" placeholder="Nhập LEHA..." value="LEHA" oninput="renderBold()" style="${inputStyle};font-size:18px;font-weight:800"></div><div id="boldOut" style="display:flex;flex-direction:column;gap:10px"></div></div>`);
+    }
+    if(id==='them-phay'){
+      return wrap('THÊM DẤU PHẨY', `<div style="display:flex;flex-direction:column;gap:12px">
+        <div style="${cardInner}"><div style="font-size:11px;font-weight:800;margin-bottom:8px">MỖI DÒNG 1 SỐ/CHỮ - OUTPUT CÁCH NHAU DẤU PHẨY</div><textarea id="commaIn" placeholder="163782\n1763638\n7889\n17282" style="${inputStyle};height:160px"></textarea></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="commaSep" style="${inputStyle};width:auto"><option value=", ">Dấu phẩy + cách (, )</option><option value=",">Chỉ phẩy (,)</option><option value="; ">Chấm phẩy (; )</option><option value=" | ">Gạch đứng ( | )</option></select><button onclick="doComma()" style="${btnPrimary}">THÊM DẤU PHẨY</button><button onclick="copyComma()" style="${btnSec}">COPY</button></div>
+        <textarea id="commaOut" placeholder="163782, 1763638, 7889, 17282" style="${inputStyle};height:120px"></textarea>
+      </div>`);
+    }
+    if(id==='danh-so'){
+      return wrap('ĐÁNH SỐ', `<div style="display:flex;flex-direction:column;gap:12px">
+        <div style="${cardInner}"><textarea id="numberIn" placeholder="Lê Hà\nVy\nThủy\nSAM Tuyền Lâm" style="${inputStyle};height:160px"></textarea></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="numberStyle" style="${inputStyle};width:auto"><option value="01. ">01. - Chấm cách</option><option value="01/ ">01/ - Gạch chéo</option><option value="01) ">01) - Ngoặc</option><option value="01 - ">01 - Gạch ngang</option><option value="1. ">1. - Không pad</option></select><label style="font-size:11px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="numberPad" checked> Pad 01,02</label><button onclick="doNumber()" style="${btnPrimary}">ĐÁNH SỐ</button><button onclick="copyNumber()" style="${btnSec}">COPY</button></div>
+        <textarea id="numberOut" style="${inputStyle};height:160px"></textarea>
+      </div>`);
+    }
+    if(id==='danh-lai-so'){
+      return wrap('ĐÁNH LẠI SỐ', `<div style="display:flex;flex-direction:column;gap:12px">
+        <div style="${cardInner}"><div style="font-size:11px;font-weight:800;margin-bottom:8px">XÓA 1 DÒNG SẼ TỰ ĐÁNH LẠI STT MỚI - LIVE</div><textarea id="renumberIn" placeholder="01. Lê Hà\n02. Vy\n03. Thủy\n04. SAM" oninput="doRenumberLive()" style="${inputStyle};height:180px"></textarea></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="renumberStyle" style="${inputStyle};width:auto" onchange="doRenumberLive()"><option value="01. ">01. - Chấm</option><option value="01/ ">01/ </option><option value="01) ">01) </option><option value="01 - ">01 - </option></select><button onclick="copyRenumber()" style="${btnSec}">COPY</button></div>
+        <textarea id="renumberOut" style="${inputStyle};height:180px;background:${T.paper};font-weight:600"></textarea>
+      </div>`);
+    }
     return wrap(id.replace(/-/g,' ').toUpperCase(), `<div style="display:flex;flex-direction:column;gap:12px">
-      <textarea id="txtIn" placeholder="Dán text..." style="${inputStyle};height:140px;resize:vertical"></textarea>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="textAction('upper')" style="${btnSecondary};font-size:11px">HOA</button>
-        <button onclick="textAction('lower')" style="${btnSecondary};font-size:11px">THƯỜNG</button>
-        <button onclick="textAction('title')" style="${btnSecondary};font-size:11px">HOA ĐẦU CÂU</button>
-        <button onclick="textAction('capitalWord')" style="${btnSecondary};font-size:11px">HOA ĐẦU CHỮ</button>
-        <button onclick="textAction('bold')" style="${btnSecondary};font-size:11px">CHỮ ĐẬM</button>
-        <button onclick="textAction('trim')" style="${btnSecondary};font-size:11px">XÓA TRỐNG</button>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap"><input id="findTxt" placeholder="Tìm..." style="flex:1;${inputStyle}"><input id="replaceTxt" placeholder="Thay..." style="flex:1;${inputStyle}"><button onclick="textAction('findReplace')" style="${btnPrimary}">THAY</button></div>
-      <textarea id="txtOut" placeholder="Kết quả..." style="${inputStyle};height:140px"></textarea>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button onclick="copyOut()" style="${btnPrimary}">COPY</button><span id="countInfo" style="font-size:11px;color:${T.ink};background:${T.paper};border:1px solid ${T.borderThin};padding:6px 12px;border-radius:999px">0 KÝ TỰ</span></div>
+      <textarea id="txtIn" placeholder="Dán text..." style="${inputStyle};height:160px"></textarea>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="textAction('upper')" style="${btnSec};font-size:11px">HOA</button><button onclick="textAction('lower')" style="${btnSec};font-size:11px">THƯỜNG</button><button onclick="textAction('title')" style="${btnSec};font-size:11px">HOA ĐẦU CÂU</button><button onclick="textAction('trim')" style="${btnSec};font-size:11px">XÓA TRỐNG</button></div>
+      <div style="display:flex;gap:6px"><input id="findTxt" placeholder="Tìm..." style="flex:1;${inputStyle}"><input id="replaceTxt" placeholder="Thay..." style="flex:1;${inputStyle}"><button onclick="textAction('findReplace')" style="${btnPrimary}">THAY</button></div>
+      <textarea id="txtOut" placeholder="Kết quả..." style="${inputStyle};height:160px"></textarea>
+      <div style="display:flex;gap:8px"><button onclick="copyOut()" style="${btnPrimary}">COPY</button><span id="countInfo" style="font-size:11px;border:1px solid ${T.borderThin};padding:8px 14px;border-radius:999px;background:${T.paper}">0 KÝ TỰ</span></div>
     </div>`);
   }
 
   if(id==='qr-chu'){
-    return wrap('TẠO QR', `<div style="display:flex;flex-direction:column;gap:12px">
-      <textarea id="qrIn" placeholder="Nhập chữ/link..." style="${inputStyle};height:90px"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="makeQR()" style="${btnPrimary}">TẠO QR</button><button onclick="downloadQR()" style="${btnSecondary}">TẢI PNG</button></div>
-      <canvas id="qrCanvas" width="320" height="320" style="border:1px solid ${T.borderThin};border-radius:12px;background:#FFFFFF;align-self:center;max-width:100%"></canvas>
-    </div>`);
-  }
-
-  if(id==='chu-ky'){
-    return wrap('CHỮ KÝ EMAIL', `<div style="display:flex;flex-direction:column;gap:10px">
-      <input id="sigName" placeholder="Tên" style="${inputStyle}"><input id="sigRole" placeholder="Chức danh" style="${inputStyle}"><input id="sigPhone" placeholder="SĐT" style="${inputStyle}"><input id="sigEmail" placeholder="Email" style="${inputStyle}">
-      <button onclick="genSig()" style="${btnPrimary}">TẠO CHỮ KÝ</button>
-      <div id="sigOut" style="border:1px solid ${T.borderThin};padding:12px;border-radius:${THEME_GLOBAL.radius.md};background:${T.paper};color:${T.ink}"></div>
-      <textarea id="sigHtml" style="${inputStyle};height:100px"></textarea>
-      <button onclick="copySig()" style="${btnSecondary}">COPY HTML</button>
-    </div>`);
-  }
-
-  if(id==='may-tinh'){
-    return wrap('MÁY TÍNH', `<div style="display:flex;flex-direction:column;gap:10px">
-      <input id="calcIn" placeholder="VD: (1200*0.8)+150" style="${inputStyle};font-size:16px;font-weight:700;text-align:right">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(k=>`<button onclick="calcPress('${k}')" style="padding:14px;border-radius:${THEME_GLOBAL.radius.md};border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-weight:700;cursor:pointer;box-sizing:border-box">${k}</button>`).join('')}</div>
-      <div id="calcOut" style="font-size:26px;font-weight:800;color:${T.ink};border:1px solid ${T.borderThin};padding:14px;border-radius:${THEME_GLOBAL.radius.md};text-align:right;min-height:56px;background:${T.paper};box-sizing:border-box"></div>
-    </div>`);
+    return wrap('TẠO QR', `<div style="display:flex;flex-direction:column;gap:12px"><textarea id="qrIn" placeholder="Nhập chữ/link..." style="${inputStyle};height:100px"></textarea><div style="display:flex;gap:8px"><button onclick="makeQR()" style="${btnPrimary}">TẠO QR HD</button><button onclick="downloadQR()" style="${btnSec}">TẢI PNG 1000px</button></div><canvas id="qrCanvas" width="1000" height="1000" style="border:1px solid ${T.borderThin};border-radius:16px;background:#fff;align-self:center;max-width:100%;width:320px;height:320px"></canvas></div>`);
   }
 
   if(id==='pdf-net'){
-    return wrap('PDF NÉT', `<div style="display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:11px;color:${T.ink};background:${T.paper};border:1px solid ${T.borderThin};padding:10px;border-radius:${THEME_GLOBAL.radius.md};box-sizing:border-box">XUẤT PNG/JPG 10.000DPI TỪNG ẢNH • CẮT/GHÉP PDF NÉT • TÁCH/SẮP XẾP • GHÉP THÀNH 1 SINGLE PAGE DÀI KHÔNG KHOẢNG CÁCH CỰC NÉT • NÉN PDF</div>
-      <input type="file" id="pdfFiles" multiple accept=".pdf,image/*" style="${inputStyle}">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="pdfAction('images-to-long-pdf')" style="${btnPrimary};font-size:11px">ẢNH → PDF DÀI</button>
-        <button onclick="pdfAction('pdf-to-images')" style="${btnSecondary};font-size:11px">PDF → ẢNH 10K</button>
-        <button onclick="pdfAction('merge-pdf')" style="${btnSecondary};font-size:11px">GHÉP PDF</button>
-        <button onclick="pdfAction('split-pdf')" style="${btnSecondary};font-size:11px">TÁCH PDF</button>
-      </div>
-      <div id="pdfOut" style="border:1px solid ${T.borderThin};padding:12px;border-radius:${THEME_GLOBAL.radius.md};min-height:60px;background:${T.paper};color:${T.ink};box-sizing:border-box;font-size:12px"></div>
+    return wrap('PDF NÉT - 10 TRANG NỐI 1 DÀI', `<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="${cardInner};background:${T.ink};color:${T.paper};border-color:${T.ink}"><div style="font-size:12px;font-weight:800">10 TRANG PDF NỐI LẠI THÀNH 1 FILE PDF DÀI SINGLE PAGE - KHÔNG CẮT - CỰC NÉT</div><div style="font-size:11px;opacity:0.8;margin-top:4px">Chọn PDF 10 trang → render từng trang HD → ghép dọc thành 1 trang dài duy nhất → xuất PDF mới</div></div>
+      <input type="file" id="pdfFiles" accept=".pdf" style="${inputStyle}">
+      <input type="file" id="pdfImages" multiple accept="image/*" style="${inputStyle}">
+      <div id="pdfFilePreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="pdfActionLong('pdf-to-long')" style="${btnPrimary}">PDF 10 TRANG → 1 TRANG DÀI CỰC NÉT</button><button onclick="pdfActionLong('images-to-long')" style="${btnSec}">ẢNH → PDF DÀI KHÔNG CẮT</button></div>
+      <canvas id="pdfLongCanvas" style="display:none"></canvas>
+      <div id="pdfOut" style="${cardInner};font-size:12px;min-height:80px"></div>
+      <div style="display:flex;gap:8px"><button id="pdfDownloadBtn" style="${btnPrimary};display:none">TẢI PDF DÀI</button><button id="pdfPreviewBtn" style="${btnSec};display:none">XEM TRƯỚC</button></div>
+      <div id="pdfPreviewArea" style="width:100%"></div>
     </div>`);
   }
 
-  if(['tuoi','lich-vn','doi-don-vi','rut-gon','giam-gia','bmi','mat-khau','ghi-chu'].includes(id)){
-    return wrap(id.replace(/-/g,' ').toUpperCase(), `<div style="display:flex;flex-direction:column;gap:12px">
-      ${id==='tuoi'?`<input id="dob" type="date" style="${inputStyle}"><button onclick="calcAge()" style="${btnPrimary}">TÍNH TUỔI</button><div id="ageOut" style="border:1px solid ${T.borderThin};padding:14px;border-radius:${THEME_GLOBAL.radius.md};font-weight:700;background:${T.paper};color:${T.ink}"></div>`:''}
-      ${id==='lich-vn'?`<input id="calDate" type="date" style="${inputStyle}"><button onclick="showCalendar()" style="${btnPrimary}">XEM LỊCH</button><div id="calOut" style="border:1px solid ${T.borderThin};padding:14px;border-radius:${THEME_GLOBAL.radius.md};background:${T.paper};color:${T.ink}"></div>`:''}
-      ${id==='doi-don-vi'?`<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="unitVal" type="number" value="1" style="flex:1;${inputStyle}"><select id="unitType" style="${inputStyle};width:auto;min-width:120px"><option value="m-km">M → KM</option><option value="km-m">KM → M</option><option value="kg-g">KG → G</option><option value="g-kg">G → KG</option><option value="c-f">°C → °F</option><option value="f-c">°F → °C</option></select><button onclick="convertUnit()" style="${btnPrimary}">ĐỔI</button></div><div id="unitOut" style="font-size:18px;font-weight:700;color:${T.ink}"></div>`:''}
-      ${id==='rut-gon'?`<input id="shortIn" placeholder="https://..." style="${inputStyle}"><button onclick="shorten()" style="${btnPrimary}">RÚT GỌN</button><div id="shortOut" style="border:1px solid ${T.borderThin};padding:12px;border-radius:${THEME_GLOBAL.radius.md};background:${T.paper};color:${T.ink}"></div>`:''}
-      ${id==='giam-gia'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="origPrice" type="number" placeholder="Giá gốc" style="${inputStyle}"><input id="salePrice" type="number" placeholder="Giá sale" style="${inputStyle}"></div><button onclick="calcSale()" style="${btnPrimary}">TÍNH %</button><div id="saleOut" style="font-size:20px;font-weight:800;color:${T.ink}"></div>`:''}
-      ${id==='bmi'?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="bmiH" type="number" placeholder="Cao cm" style="${inputStyle}"><input id="bmiW" type="number" placeholder="Nặng kg" style="${inputStyle}"></div><button onclick="calcBMI()" style="${btnPrimary}">TÍNH BMI</button><div id="bmiOut" style="font-weight:700;color:${T.ink}"></div>`:''}
-      ${id==='mat-khau'?`<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="pwOut" readonly style="flex:1;${inputStyle};font-weight:700"><button onclick="genPass()" style="${btnPrimary}">TẠO</button><button onclick="navigator.clipboard.writeText(document.getElementById('pwOut').value)" style="${btnSecondary}">COPY</button></div>`:''}
-      ${id==='ghi-chu'?`<textarea id="noteIn" placeholder="Ghi chú tự lưu..." style="${inputStyle};height:180px"></textarea><span id="noteStatus" style="font-size:11px;color:${T.muted}"></span>`:''}
+  if(id==='doi-ten-loat'){
+    return wrap('ĐỔI TÊN LOẠT', `<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="${cardInner}"><div style="font-size:11px;font-weight:800;margin-bottom:8px">CHỌN FILE / FOLDER - XEM TRƯỚC</div><input type="file" id="renameFiles" multiple style="${inputStyle}"><input type="file" id="renameFiles2" multiple webkitdirectory directory style="${inputStyle};margin-top:8px"><div id="renamePreview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:12px"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="renamePrefix" placeholder="Tiền tố VD: LEHA_" style="${inputStyle}"><input id="renameSuffix" placeholder="Hậu tố VD: _2024" style="${inputStyle}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="renameCase" style="${inputStyle};width:auto"><option value="keep">Giữ nguyên</option><option value="lower">thường hết</option><option value="upper">HOA HẾT</option></select><label style="font-size:11px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="renameNumber" checked> Đánh số 01,02</label></div>
+      <button onclick="renameBatch()" style="${btnPrimary}">ĐỔI TÊN & TẢI</button>
+      <div id="renameOut" style="${cardInner};font-size:12px;min-height:60px"></div>
+      <button id="renameDownloadAll" style="${btnSec};display:none">TẢI TẤT CẢ ĐÃ ĐỔI TÊN</button>
     </div>`);
   }
 
-  return wrap(id.toUpperCase(), `<div style="padding:12px;border:1px solid ${getT().borderThin};border-radius:12px;background:${getT().paper};color:${getT().ink};font-size:12px">TOOL ${id} ĐANG CHẠY OFFLINE</div>`);
+  if(['may-tinh','tuoi','lich-vn','doi-don-vi','ghi-chu','chu-ky'].includes(id)){
+    return wrap(id.toUpperCase(), `<div style="display:flex;flex-direction:column;gap:12px">
+      ${id==='may-tinh'?`<input id="calcIn" placeholder="(1200*0.8)+150" style="${inputStyle};font-size:18px;font-weight:700;text-align:right"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(k=>`<button onclick="calcPress('${k}')" style="padding:16px;border-radius:12px;border:1px solid ${T.borderThin};background:${T.paper};color:${T.ink};font-weight:800;cursor:pointer">${k}</button>`).join('')}</div><div id="calcOut" style="font-size:28px;font-weight:900;color:${T.ink};border:1px solid ${T.borderThin};padding:16px;border-radius:12px;text-align:right;min-height:60px;background:${T.paper}"></div>`:''}
+      ${id==='tuoi'?`<input id="dob" type="date" style="${inputStyle}"><button onclick="calcAge()" style="${btnPrimary}">TÍNH TUỔI</button><div id="ageOut" style="${cardInner};font-weight:800;font-size:18px"></div>`:''}
+      ${id==='lich-vn'?`<input id="calDate" type="date" style="${inputStyle}"><button onclick="showCalendar()" style="${btnPrimary}">XEM LỊCH</button><div id="calOut" style="${cardInner}"></div>`:''}
+      ${id==='doi-don-vi'?`<div style="display:flex;gap:8px"><input id="unitVal" type="number" value="1" style="flex:1;${inputStyle}"><select id="unitType" style="${inputStyle};width:auto"><option value="m-km">M→KM</option><option value="kg-g">KG→G</option><option value="c-f">C→F</option></select><button onclick="convertUnit()" style="${btnPrimary}">ĐỔI</button></div><div id="unitOut" style="font-size:20px;font-weight:800"></div>`:''}
+      ${id==='ghi-chu'?`<textarea id="noteIn" placeholder="Ghi chú tự lưu..." style="${inputStyle};height:200px"></textarea><span id="noteStatus" style="font-size:11px;color:${T.muted}"></span>`:''}
+      ${id==='chu-ky'?`<input id="sigName" placeholder="Tên" style="${inputStyle}"><input id="sigRole" placeholder="Chức danh" style="${inputStyle}"><input id="sigPhone" placeholder="SĐT" style="${inputStyle}"><input id="sigEmail" placeholder="Email" style="${inputStyle}"><button onclick="genSig()" style="${btnPrimary}">TẠO</button><div id="sigOut" style="${cardInner}"></div><textarea id="sigHtml" style="${inputStyle};height:100px"></textarea><button onclick="copySig()" style="${btnSec}">COPY HTML</button>`:''}
+    </div>`);
+  }
+
+  return wrap(id.toUpperCase(), `<div style="${cardInner}">TOOL ${id}</div>`);
 }
 
 function renderApp(){
-  loadCats(); const timeStr=getTime(); const dateStr=getFullDate(); const filtered=filterTools(); const T=getT();
+  loadCats(); loadTools();
+  const timeStr=getTime(); const dateStr=getFullDate(); const filtered=filterTools(); const T=getT();
   document.body.style.background=T.bg; document.body.style.color=T.ink;
-  const app=document.getElementById('app');
-  app.innerHTML=`${renderBG()}<div style="max-width:1120px;width:100%;margin:0 auto;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;overflow-x:hidden">
+  document.getElementById('app').innerHTML=`${renderBG()}<div style="max-width:1120px;width:100%;margin:0 auto;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;overflow-x:hidden">
     ${renderHeader(timeStr,dateStr)}
-    ${state.currentTool?toolView(state.currentTool):`${renderMenu()}<div style="display:flex;flex-direction:column;gap:12px;width:100%;box-sizing:border-box;overflow:hidden">${filtered.map(f=>renderGroup(f.cfg,f.tools)).join('')}</div>`}
+    ${state.currentTool?toolView(state.currentTool):`${renderMenu()}<div style="display:flex;flex-direction:column;gap:12px;width:100%">${filtered.map(f=>renderGroup(f.cfg,f.tools)).join('')}</div>`}
   </div>`;
-  app.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{ state.sort=b.dataset.sort; renderApp(); });
-  app.querySelectorAll('[data-cat]').forEach(b=>{ b.onclick=()=>{ state.cat=b.dataset.cat; renderApp(); }; });
-  const addBtn=document.getElementById('addCat'); if(addBtn) addBtn.onclick=()=>{ const n=prompt('Tên mới:'); if(!n) return; const c=n.trim().toUpperCase(); if(!c||state.cats.includes(c)) return; state.cats.push(c); saveCats(); renderApp(); };
-  app.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{ state.open[b.dataset.toggle]=!state.open[b.dataset.toggle]; renderApp(); });
-  app.querySelectorAll('[data-tool-id]').forEach(el=>{
-    el.onclick=()=>{
-      el.classList.add('flipped');
-      setTimeout(()=>{ state.currentTool=el.dataset.toolId; renderApp(); }, 180);
-    };
+  // Bind
+  document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{ state.sort=b.dataset.sort; renderApp(); });
+  let catClickTimer=null;
+  document.querySelectorAll('[data-cat]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(catClickTimer) return;
+      catClickTimer=setTimeout(()=>{ state.cat=b.dataset.cat; renderApp(); catClickTimer=null; }, 220);
+    });
+    b.addEventListener('dblclick', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(catClickTimer){ clearTimeout(catClickTimer); catClickTimer=null; }
+      const old=b.dataset.catname; if(MENU_CONFIG.row2.defaultOptions.includes(old)||old==='ALL') return alert('Không đổi tên danh mục mặc định');
+      const nv=prompt('ĐỔI TÊN DANH MỤC:', old); if(!nv) return;
+      const n=nv.trim().toUpperCase(); if(!n||state.cats.includes(n)) return;
+      state.cats=state.cats.map(c=>c===old?n:c); if(state.cat===old) state.cat=n; saveCats(); renderApp();
+    });
+  });
+  document.getElementById('addCat')?.addEventListener('click',()=>{
+    const n=prompt('Tên danh mục mới:'); if(!n) return; const c=n.trim().toUpperCase(); if(!c||state.cats.includes(c)) return; state.cats.push(c); saveCats(); renderApp();
+  });
+  document.getElementById('manageCats')?.addEventListener('click',()=>{
+    const cat=prompt('Nhập tên danh mục cần XÓA/SỬA:\nHiện có: '+state.cats.join(', ')); if(!cat) return;
+    const up=cat.trim().toUpperCase();
+    if(!state.cats.includes(up)) return alert('Không có danh mục này');
+    if(MENU_CONFIG.row2.defaultOptions.includes(up)) return alert('Không xóa danh mục mặc định');
+    if(confirm('XÓA danh mục '+up+'? Bấm Cancel để đổi tên')){
+      state.cats=state.cats.filter(c=>c!==up); if(state.cat===up) state.cat='ALL'; saveCats(); renderApp();
+    } else {
+      const nv=prompt('Đổi tên thành:', up); if(!nv) return; const n=nv.trim().toUpperCase(); if(!n||state.cats.includes(n)) return; state.cats=state.cats.map(c=>c===up?n:c); if(state.cat===up) state.cat=n; saveCats(); renderApp();
+    }
+  });
+  document.getElementById('addToolBtn')?.addEventListener('click',()=>{
+    const name=prompt('Tên tool mới (2-3 chữ):'); if(!name) return;
+    const cat=prompt('Thêm vào danh mục nào? (ẢNH, CHỮ, TIỆN ÍCH hoặc tên bạn tạo):\n'+state.cats.join(', ')); if(!cat) return;
+    const upCat=cat.trim().toUpperCase();
+    const id=name.toLowerCase().replace(/\s+/g,'-')+'-'+Date.now();
+    const num=String((CARD_ANH_CONFIG.links.length+CARD_CHU_CONFIG.links.length+CARD_TIENICH_CONFIG.links.length+1)).padStart(2,'0');
+    const tool={num, name:name.toUpperCase(), id, addedAt:Date.now()};
+    if(upCat==='ẢNH'||upCat==='ANH') CARD_ANH_CONFIG.links.push(tool);
+    else if(upCat==='CHỮ'||upCat==='CHU') CARD_CHU_CONFIG.links.push(tool);
+    else if(upCat==='TIỆN ÍCH'||upCat==='TIEN ICH') CARD_TIENICH_CONFIG.links.push(tool);
+    else {
+      // Add to TIEN ICH if custom
+      CARD_TIENICH_CONFIG.links.push(tool);
+      if(!state.cats.includes(upCat)){ state.cats.push(upCat); saveCats(); }
+    }
+    saveTools(); renderApp();
+  });
+  document.getElementById('resetTools')?.addEventListener('click',()=>{
+    if(!confirm('RESET về mặc định? Xóa hết danh mục/tool bạn thêm?')) return;
+    localStorage.removeItem(MENU_CONFIG.storageKey); localStorage.removeItem(MENU_CONFIG.toolsKey); location.reload();
+  });
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{ state.open[b.dataset.toggle]=!state.open[b.dataset.toggle]; renderApp(); });
+  let clickTimer=null;
+  function openEditMenu(gid,tid){
+    const cfg = gid==='anh'?CARD_ANH_CONFIG:gid==='chu'?CARD_CHU_CONFIG:CARD_TIENICH_CONFIG;
+    const idx=cfg.links.findIndex(t=>t.id===tid);
+    if(idx<0) return;
+    const action=prompt(`TOOL: ${cfg.links[idx].name}\n1=SỬA TÊN\n2=XÓA\n3=CHUYỂN DANH MỤC\nNhập 1/2/3 (Cancel để thoát):`);
+    if(action==='1'){
+      const nn=prompt('Tên mới (2-3 chữ VIẾT HOA):', cfg.links[idx].name); if(nn) { cfg.links[idx].name=nn.trim().toUpperCase(); saveTools(); renderApp(); }
+    } else if(action==='2'){
+      if(confirm('XÓA tool '+cfg.links[idx].name+' ?')) { cfg.links.splice(idx,1); saveTools(); renderApp(); }
+    } else if(action==='3'){
+      const nc=prompt('Chuyển tới danh mục nào?\nẢNH / CHỮ / TIỆN ÍCH\nHoặc tên danh mục bạn đã tạo:', 'TIỆN ÍCH'); if(!nc) return;
+      const up=nc.trim().toUpperCase();
+      const tool=cfg.links.splice(idx,1)[0];
+      if(up.includes('ẢNH')||up==='ANH') CARD_ANH_CONFIG.links.push(tool);
+      else if(up.includes('CHỮ')||up==='CHU') CARD_CHU_CONFIG.links.push(tool);
+      else if(up.includes('TIỆN')) CARD_TIENICH_CONFIG.links.push(tool);
+      else {
+        // custom category -> push to TIEN ICH and ensure cat exists
+        CARD_TIENICH_CONFIG.links.push(tool);
+        if(!state.cats.includes(up)){ state.cats.push(up); saveCats(); }
+      }
+      saveTools(); renderApp();
+    }
+  }
+  document.querySelectorAll('[data-tool-id]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-edit]')) return;
+      if(clickTimer) return;
+      clickTimer=setTimeout(()=>{
+        state.currentTool=el.dataset.toolId; renderApp(); setTimeout(bindEvents,80);
+        clickTimer=null;
+      }, 250);
+    });
+    el.addEventListener('dblclick', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; }
+      const gid=el.dataset.group; const tid=el.dataset.toolId;
+      openEditMenu(gid,tid);
+    });
+    const editBtn=el.querySelector('[data-edit]');
+    if(editBtn){
+      editBtn.addEventListener('click',(e)=>{
+        e.preventDefault(); e.stopPropagation();
+        if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; }
+        const gid=editBtn.dataset.group; const tid=editBtn.dataset.edit;
+        openEditMenu(gid,tid);
+      });
+    }
   });
   const themeBtn=document.getElementById('themeToggle'); const themeMenu=document.getElementById('themeMenu');
   if(themeBtn&&themeMenu){
     themeBtn.onclick=(e)=>{ e.stopPropagation(); themeMenu.style.display=themeMenu.style.display==='flex'?'none':'flex'; themeMenu.style.flexDirection='column'; };
     themeMenu.querySelectorAll('[data-theme]').forEach(btn=>{ btn.onclick=()=>{ currentThemeName=btn.dataset.theme; try{ localStorage.setItem(HEADER_CONFIG.storageKey, currentThemeName); }catch{} renderApp(); }; });
-    document.addEventListener('click', (ev)=>{ if(themeMenu && !themeMenu.contains(ev.target) && ev.target!==themeBtn) themeMenu.style.display='none'; }, {once:true});
   }
   if(state.currentTool) bindEvents();
 }
 
 function bindEvents(){
   const noteIn=document.getElementById('noteIn');
-  if(noteIn){ try{ noteIn.value=localStorage.getItem('leha_note')||''; }catch{} noteIn.oninput=()=>{ try{ localStorage.setItem('leha_note', noteIn.value); const s=document.getElementById('noteStatus'); if(s) s.textContent='TỰ LƯU '+new Date().toLocaleTimeString(); }catch{} }; }
+  if(noteIn){ try{ noteIn.value=localStorage.getItem('leha_note')||''; }catch{} noteIn.oninput=()=>{ try{ localStorage.setItem('leha_note', noteIn.value); document.getElementById('noteStatus').textContent='TỰ LƯU '+new Date().toLocaleTimeString(); }catch{} }; }
+  if(document.getElementById('boldIn')) renderBold();
+  // File preview handlers
+  const imgIn=document.getElementById('imgIn'); const imgInFolder=document.getElementById('imgInFolder');
+  if(imgIn) imgIn.onchange=(e)=>previewFiles([...e.target.files]);
+  if(imgInFolder) imgInFolder.onchange=(e)=>previewFiles([...e.target.files]);
+  const pdfFiles=document.getElementById('pdfFiles'); if(pdfFiles) pdfFiles.onchange=(e)=>previewPdfFiles([...e.target.files]);
+  const pdfImages=document.getElementById('pdfImages'); if(pdfImages) pdfImages.onchange=(e)=>previewPdfImages([...e.target.files]);
+  const renameFiles=document.getElementById('renameFiles'); const renameFiles2=document.getElementById('renameFiles2');
+  if(renameFiles) renameFiles.onchange=(e)=>previewRename([...e.target.files]);
+  if(renameFiles2) renameFiles2.onchange=(e)=>previewRename([...e.target.files]);
+  countChars();
 }
 
-function processImage(type){
-  const files=document.getElementById('imgIn')?.files; if(!files||!files.length) return alert('CHỌN ẢNH');
-  const out=document.getElementById('imgOut'); out.innerHTML='ĐANG XỬ LÝ '+files.length+' ẢNH...';
-  const q=parseFloat(document.getElementById('qRange')?.value||0.75);
-  const outFormat=document.getElementById('outFormat')?.value||'image/jpeg';
+let selectedPreviewFiles=[];
+
+function previewFiles(files){
+  const container=document.getElementById('filePreview'); if(!container) return;
+  selectedPreviewFiles = files.map((f,i)=>({file:f, selected:true, id:i}));
+  container.innerHTML='';
+  files.forEach((f,i)=>{
+    const url=URL.createObjectURL(f);
+    const div=document.createElement('div');
+    div.className='preview-item selected';
+    div.dataset.id=i;
+    div.innerHTML=`<div class="check">✓</div><img src="${url}" style="width:100%;height:90px;object-fit:cover;display:block"><div style="font-size:10px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>`;
+    div.onclick=()=>{
+      const item=selectedPreviewFiles.find(x=>x.id===i);
+      if(item){ item.selected=!item.selected; div.classList.toggle('selected', item.selected); div.querySelector('.check').textContent=item.selected?'✓':''; }
+    };
+    container.appendChild(div);
+  });
+}
+
+function getSelectedFiles(){
+  if(selectedPreviewFiles.length) return selectedPreviewFiles.filter(s=>s.selected).map(s=>s.file);
+  const input=document.getElementById('imgIn'); return input?[...input.files]:[];
+}
+
+function processImageHD(type){
+  const files=getSelectedFiles();
+  if(!files.length) return alert('CHỌN ẢNH VÀ TICK CHỌN TRONG PREVIEW');
+  const out=document.getElementById('imgOut'); out.innerHTML=`ĐANG XỬ LÝ HD ${files.length} ẢNH ĐÃ CHỌN...`;
+  const q=1; const outFormat=document.getElementById('outFormat')?.value||'image/png';
   const sizePreset=document.getElementById('sizePreset')?.value||'original';
   const bgColor=document.getElementById('bgColor')?.value||'#ffffff';
   const cropShape=document.getElementById('cropShape')?.value||'square';
   const logoFile=document.getElementById('logoIn')?.files?.[0];
-  const textOn=document.getElementById('textOnImg')?.value||'';
-  const textColor=document.getElementById('textColor')?.value||'#ffffff';
   const loadLogo = logoFile ? new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.src=URL.createObjectURL(logoFile); }) : Promise.resolve(null);
   loadLogo.then(logoImg=>{
+    state.processedBlobs=[];
     out.innerHTML='';
-    for(let f of files){
-      const img=new Image(); img.onload=()=>{
-        const c=document.createElement('canvas'); const ctx=c.getContext('2d');
+    files.forEach((f,idx)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas'); const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
         let w=img.width, h=img.height;
-        if(type==='chen-nen-size' || type==='doi-dinh-dang' || type==='nen-dong-loat'){
-          const sizes={'1:1':[1080,1080],'3:4':[750,1000],'4:5':[800,1000],'9:16':[720,1280],'16:9':[1280,720],'original':[w,h]};
-          const [nw,nh]=sizes[sizePreset]||[w,h];
+        if(type==='chen-nen-size' || type==='doi-dinh-dang' || type==='nen-dong-loat' || type==='tang-net'){
+          const sizes={'1:1':[2048,2048],'3:4':[1536,2048],'original':[w,h]}; const [nw,nh]=sizes[sizePreset]||[w,h];
           c.width=nw; c.height=nh; ctx.fillStyle=bgColor; ctx.fillRect(0,0,nw,nh);
-          const scale=Math.min(nw/w, nh/h); const dw=w*scale, dh=h*scale;
-          ctx.drawImage(img, (nw-dw)/2, (nh-dh)/2, dw, dh);
+          const scale=Math.min(nw/w, nh/h); const dw=w*scale, dh=h*scale; ctx.drawImage(img,(nw-dw)/2,(nh-dh)/2,dw,dh);
+          if(type==='tang-net'){ ctx.globalAlpha=0.4; ctx.globalCompositeOperation='overlay'; ctx.drawImage(c,0,0); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; }
         } else if(type==='cat-dong-loat'){
-          c.width=1080; c.height=1080; ctx.fillStyle=bgColor; ctx.fillRect(0,0,1080,1080);
-          const scale=Math.max(1080/w,1080/h); const dw=w*scale, dh=h*scale;
-          ctx.drawImage(img, (1080-dw)/2, (1080-dh)/2, dw, dh);
-          if(cropShape==='circle'){ ctx.globalCompositeOperation='destination-in'; ctx.beginPath(); ctx.arc(540,540,540,0,Math.PI*2); ctx.fill(); ctx.globalCompositeOperation='source-over'; }
-        } else {
+          c.width=2048; c.height=2048; ctx.fillStyle=bgColor; ctx.fillRect(0,0,2048,2048);
+          const scale=Math.max(2048/w,2048/h); const dw=w*scale, dh=h*scale; ctx.drawImage(img,(2048-dw)/2,(2048-dh)/2,dw,dh);
+          if(cropShape==='circle'){ ctx.globalCompositeOperation='destination-in'; ctx.beginPath(); ctx.arc(1024,1024,1024,0,Math.PI*2); ctx.fill(); ctx.globalCompositeOperation='source-over'; }
+        } else if(type==='chen-logo-goc'){
           c.width=w; c.height=h; ctx.drawImage(img,0,0);
-          if(type==='tang-net'){ ctx.globalAlpha=0.35; ctx.globalCompositeOperation='overlay'; ctx.drawImage(img,0,0); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; }
-          if(type==='tach-nen'){ const id=ctx.getImageData(0,0,w,h); for(let i=0;i<id.data.length;i+=4){ const avg=(id.data[i]+id.data[i+1]+id.data[i+2])/3; if(avg>200) id.data[i+3]=0; } ctx.putImageData(id,0,0); }
-        }
-        if(type==='chen-logo-goc' && logoImg){
-          const lw=w*0.18, lh=logoImg.height*(lw/logoImg.width);
-          ctx.globalAlpha=0.9; ctx.drawImage(logoImg, w-lw-12, h-lh-12, lw, lh); ctx.globalAlpha=1;
-        }
-        if(type==='chen-chu' && textOn){
-          ctx.fillStyle=textColor; ctx.font=`bold ${Math.max(22,w*0.08)}px sans-serif`; ctx.textAlign='center';
-          ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=4; ctx.strokeText(textOn, w/2, h-50); ctx.fillText(textOn, w/2, h-50);
-        }
-        const mime = type==='doi-dinh-dang'?outFormat:'image/jpeg';
-        const ext = mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
+          if(logoImg){ const size=0.18; const lw=w*size, lh=logoImg.height*(lw/logoImg.width); ctx.drawImage(logoImg,w-lw-16,h-lh-16,lw,lh); }
+        } else { c.width=w; c.height=h; ctx.drawImage(img,0,0); }
         c.toBlob(blob=>{
           const url=URL.createObjectURL(blob);
-          const a=document.createElement('a'); a.href=url; a.download=`${type}-${f.name.replace(/\..+$/,'')}.${ext}`;
-          a.innerHTML=`<img src="${url}" style="width:100%;height:110px;object-fit:cover;border-radius:8px;display:block"><div style="font-size:10px;margin-top:6px;color:${getT().ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name} • ${(blob.size/1024).toFixed(0)}KB</div>`;
-          a.style.cssText=`display:block;border:1px solid ${getT().borderThin};border-radius:10px;padding:6px;background:${getT().paper};text-decoration:none;box-sizing:border-box`;
-          out.appendChild(a);
-        }, mime, q);
-      }; img.src=URL.createObjectURL(f);
-    }
+          const ext = outFormat==='image/png'?'png':outFormat==='image/webp'?'webp':'jpg';
+          state.processedBlobs.push({blob, name:`LEHA-HD-${idx+1}-${f.name.replace(/\\..+$/,'')}.${ext}`, url});
+          const div=document.createElement('div');
+          div.style.cssText=`border:1px solid ${getT().borderThin};border-radius:12px;padding:6px;background:${getT().paper};`;
+          div.innerHTML=`<img src="${url}" style="width:100%;height:120px;object-fit:cover;border-radius:8px"><div style="font-size:10px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name} • ${c.width}x${c.height}</div><button onclick="downloadBlob(${state.processedBlobs.length-1})" style="margin-top:6px;width:100%;padding:8px;border-radius:999px;background:${getT().ink};color:${getT().paper};font-size:11px;font-weight:700;cursor:pointer">TẢI</button>`;
+          out.appendChild(div);
+          document.getElementById('downloadAllBtn').style.display='inline-flex';
+        }, outFormat==='image/png'?'image/png':'image/jpeg', q);
+      };
+      img.src=URL.createObjectURL(f);
+    });
   });
 }
 
+function downloadBlob(i){ const b=state.processedBlobs[i]; if(!b) return; const a=document.createElement('a'); a.href=b.url; a.download=b.name; a.click(); }
+function downloadAll(){ state.processedBlobs.forEach((b,i)=>{ setTimeout(()=>downloadBlob(i), i*300); }); }
+document.addEventListener('click',(e)=>{ if(e.target && e.target.id==='downloadAllBtn') downloadAll(); });
+
+// Text tools
 function textAction(act){
   const inp=document.getElementById('txtIn')?.value||''; const outEl=document.getElementById('txtOut'); let out=inp;
   if(act==='upper') out=inp.toUpperCase();
   if(act==='lower') out=inp.toLowerCase();
-  if(act==='title') out=inp.replace(/\w\S*/g, w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
-  if(act==='capitalWord') out=inp.split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
-  if(act==='bold') out=inp.replace(/[A-Za-z0-9]/g, c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D400+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D41A+code-97); return c; });
-  if(act==='trim') out=inp.split('\n').map(l=>l.trim().replace(/\s+/g,' ')).filter(Boolean).join('\n');
+  if(act==='title') out=inp.replace(/\\w\\S*/g, w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
+  if(act==='trim') out=inp.split('\\n').map(l=>l.trim().replace(/\\s+/g,' ')).filter(Boolean).join('\\n');
   if(act==='findReplace'){ const f=document.getElementById('findTxt')?.value||''; const r=document.getElementById('replaceTxt')?.value||''; if(f) out=inp.split(f).join(r); }
-  if(outEl) outEl.value=out;
+  if(outEl) outEl.value=out; countChars();
 }
+function countChars(){ const txt=document.getElementById('txtIn')?.value||''; const el=document.getElementById('countInfo'); if(el) el.textContent=`${txt.length} KÝ TỰ • ${txt.trim()?txt.trim().split(/\\s+/).length:0} TỪ`; }
 function copyOut(){ const v=document.getElementById('txtOut')?.value||document.getElementById('txtIn')?.value||''; navigator.clipboard.writeText(v); }
+
+// Bold
+const boldStyles = [
+  {name:'𝗦𝗔𝗡𝗦 𝗕𝗢𝗟𝗗', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D5D4+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D5EE+code-97); return c; }},
+  {name:'𝙎𝘼𝙉𝙎 𝘽𝙊𝙇𝘿 𝙄𝙏𝘼𝙇𝙄𝘾', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D63C+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D656+code-97); return c; }},
+  {name:'𝘚𝘈𝘕𝘚 𝘐𝘛𝘈𝘓𝘐𝘊', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D608+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D622+code-97); return c; }},
+  {name:'𝑺𝑬𝑹𝑰𝑭 𝑩𝑶𝑳𝑫 𝑰𝑻𝑨𝑳𝑰𝑪', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D4D0+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D4EA+code-97); return c; }},
+  {name:'𝐒𝐄𝐑𝐈𝐅 𝐁𝐎𝐋𝐃', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D400+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D41A+code-97); return c; }},
+  {name:'𝐿𝐸𝐻𝐴 𝐼𝑇𝐴𝐿𝐼𝐶', map:c=>{ const code=c.charCodeAt(0); if(65<=code&&code<=90) return String.fromCodePoint(0x1D434+code-65); if(97<=code&&code<=122) return String.fromCodePoint(0x1D44E+code-97); return c; }}
+];
+function renderBold(){
+  const inp=document.getElementById('boldIn')?.value||'LEHA';
+  const out=document.getElementById('boldOut'); if(!out) return; const T=getT();
+  out.innerHTML = boldStyles.map(s=>{
+    const converted = inp.split('').map(s.map).join('');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-radius:12px;border:1px solid ${T.borderThin};background:${T.paper}"><div><div style="font-size:10px;font-weight:800;color:${T.muted}">${s.name}</div><div style="font-size:18px;font-weight:800;color:${T.ink};margin-top:2px">${converted}</div></div><button onclick="navigator.clipboard.writeText('${converted}');this.textContent='ĐÃ COPY';setTimeout(()=>this.textContent='COPY',1200)" style="padding:8px 14px;border-radius:999px;background:${T.ink};color:${T.paper};font-size:11px;font-weight:700;cursor:pointer">COPY</button></div>`;
+  }).join('');
+}
+
+// Comma tool
+function doComma(){
+  const inp=document.getElementById('commaIn')?.value||''; const sep=document.getElementById('commaSep')?.value||', ';
+  const lines=inp.split('\\n').map(s=>s.trim()).filter(Boolean);
+  document.getElementById('commaOut').value=lines.join(sep);
+}
+function copyComma(){ navigator.clipboard.writeText(document.getElementById('commaOut').value); }
+
+// Numbering tool
+function doNumber(){
+  const inp=document.getElementById('numberIn')?.value||''; const style=document.getElementById('numberStyle')?.value||'01. '; const pad=document.getElementById('numberPad')?.checked;
+  const lines=inp.split('\\n').filter(l=>l.trim()!=='');
+  const out=lines.map((line,i)=>{
+    let num=i+1; let numStr=pad?String(num).padStart(2,'0'):String(num);
+    let fmt=style.replace('01',numStr).replace('1',numStr);
+    return fmt+line.trim();
+  }).join('\\n');
+  document.getElementById('numberOut').value=out;
+}
+function copyNumber(){ navigator.clipboard.writeText(document.getElementById('numberOut').value); }
+
+// Renumber tool
+function doRenumberLive(){
+  const inp=document.getElementById('renumberIn')?.value||''; const style=document.getElementById('renumberStyle')?.value||'01. ';
+  const lines=inp.split('\\n').filter(l=>l.trim()!=='');
+  // Remove existing numbering pattern
+  const cleaned=lines.map(l=>l.replace(/^\\s*\\d+[\\.)\\/\\-]*\\s*/, '').trim()).filter(Boolean);
+  const out=cleaned.map((line,i)=>{
+    let num=i+1; let numStr=String(num).padStart(2,'0');
+    let fmt=style.replace('01',numStr).replace('1',numStr);
+    return fmt+line;
+  }).join('\\n');
+  document.getElementById('renumberOut').value=out;
+}
+function copyRenumber(){ navigator.clipboard.writeText(document.getElementById('renumberOut').value); }
+
+// QR
 function makeQR(){
   const txt=document.getElementById('qrIn')?.value||''; if(!txt) return alert('NHẬP CHỮ');
   const canvas=document.getElementById('qrCanvas'); const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,320,320); ctx.fillStyle='#000000';
+  ctx.fillStyle='#FFFFFF'; ctx.fillRect(0,0,1000,1000); ctx.fillStyle='#000000';
   let hash=0; for(let i=0;i<txt.length;i++) hash=((hash<<5)-hash)+txt.charCodeAt(i);
-  for(let r=0;r<25;r++) for(let c=0;c<25;c++){ if(r<7&&c<7) continue; if(r<7&&c>=18) continue; if(r>=18&&c<7) continue; if((Math.abs(hash)+r*c*3+r*7+c*11)%7<3) ctx.fillRect(25+c*10,25+r*10,9,9); }
-  const drawFinder=(x,y)=>{ ctx.fillStyle='#000000'; ctx.fillRect(x,y,70,70); ctx.fillStyle='#FFFFFF'; ctx.fillRect(x+10,y+10,50,50); ctx.fillStyle='#000000'; ctx.fillRect(x+20,y+20,30,30); };
-  drawFinder(25,25); drawFinder(225,25); drawFinder(25,225);
+  const cell=40, off=40;
+  for(let r=0;r<21;r++) for(let c=0;c<21;c++){ if(r<7&&c<7) continue; if(r<7&&c>=14) continue; if(r>=14&&c<7) continue; if((Math.abs(hash)+r*c*7)%5<2) ctx.fillRect(off+c*cell, off+r*cell, cell-4, cell-4); }
+  const drawF=(x,y)=>{ ctx.fillStyle='#000'; ctx.fillRect(x,y,7*cell,7*cell); ctx.fillStyle='#fff'; ctx.fillRect(x+cell,y+cell,5*cell,5*cell); ctx.fillStyle='#000'; ctx.fillRect(x+2*cell,y+2*cell,3*cell,3*cell); };
+  drawF(off,off); drawF(off+14*cell,off); drawF(off,off+14*cell);
 }
-function downloadQR(){ const canvas=document.getElementById('qrCanvas'); const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download='qr.png'; a.click(); }
-function genSig(){ const name=document.getElementById('sigName')?.value||'LE HA'; const role=document.getElementById('sigRole')?.value||''; const phone=document.getElementById('sigPhone')?.value||''; const email=document.getElementById('sigEmail')?.value||''; const T=getT(); const html=`<div style="font-family:sans-serif;border-left:3px solid ${T.labChu};padding-left:12px"><b style="font-size:14px;color:${T.ink}">${name}</b><br><span style="font-size:12px;color:${T.muted}">${role}</span><br><span style="font-size:11px;color:${T.ink}">${phone} | ${email}</span></div>`; document.getElementById('sigOut').innerHTML=html; document.getElementById('sigHtml').value=html; }
+function downloadQR(){ const c=document.getElementById('qrCanvas'); const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='LEHA-QR-HD.png'; a.click(); }
+function genSig(){ const name=document.getElementById('sigName')?.value||'LE HA'; const T=getT(); const html=`<div style="border-left:3px solid ${T.labChu};padding-left:12px"><b>${name}</b></div>`; document.getElementById('sigOut').innerHTML=html; document.getElementById('sigHtml').value=html; }
 function copySig(){ navigator.clipboard.writeText(document.getElementById('sigHtml').value); }
-function calcPress(k){ const inp=document.getElementById('calcIn'); if(k==='='){ try{ const v=eval(inp.value); document.getElementById('calcOut').textContent=v; inp.value=v; }catch{ document.getElementById('calcOut').textContent='LOI'; } } else { inp.value+=k; } }
-function pdfAction(type){
-  const files=document.getElementById('pdfFiles')?.files; const out=document.getElementById('pdfOut');
-  if(!files||!files.length) return out.textContent='CHON FILE';
-  if(type==='images-to-long-pdf'){
-    const win=window.open('', '_blank'); win.document.write('<html><head><title>PDF DAI</title><style>body{margin:0} img{display:block;width:100%;margin:0;padding:0}</style></head><body>');
-    for(let f of files){ if(!f.type.startsWith('image/')) continue; const url=URL.createObjectURL(f); win.document.write(`<img src="${url}">`); }
-    win.document.write('</body></html>'); win.document.close(); setTimeout(()=>win.print(),600);
-    out.textContent=`DA TAO PDF DAI TU ${files.length} ANH - CHON SAVE AS PDF`;
-  } else { out.textContent=`MO ${files.length} FILE DE IN/GHEP/TACH - GIU NET`; for(let f of files) window.open(URL.createObjectURL(f),'_blank'); }
+function calcPress(k){ const inp=document.getElementById('calcIn'); if(k==='='){ try{ const v=eval(inp.value); document.getElementById('calcOut').textContent=v; inp.value=v; }catch{ document.getElementById('calcOut').textContent='LỖI'; } } else { inp.value+=k; } }
+
+// PDF LONG - 10 trang nối 1 dài
+let pdfLongBlob=null; let pdfLongUrl=null;
+
+function previewPdfFiles(files){
+  const container=document.getElementById('pdfFilePreview'); if(!container) return;
+  container.innerHTML='';
+  files.forEach(f=>{
+    const div=document.createElement('div'); div.style.cssText=`border:1px solid ${getT().borderThin};border-radius:12px;padding:8px;background:${getT().paper};font-size:11px`;
+    div.textContent=`📄 ${f.name} • ${(f.size/1024/1024).toFixed(2)} MB`; container.appendChild(div);
+  });
 }
-function calcAge(){ const dob=new Date(document.getElementById('dob')?.value); if(isNaN(dob)) return; const now=new Date(); let y=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) y--; document.getElementById('ageOut').innerHTML=`<div style="font-size:28px;font-weight:800">${y} TUOI</div>`; }
-function showCalendar(){ const d=new Date(document.getElementById('calDate')?.value||new Date()); const T=getT(); document.getElementById('calOut').innerHTML=`<div style="font-size:16px;font-weight:800;color:${T.ink}">${d.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</div><div style="margin-top:8px;padding:10px;border-radius:8px;background:${T.bg};border:1px solid ${T.borderThin};color:${T.ink}">DUONG: ${d.toLocaleDateString('vi-VN')} - AM: ~ ${d.getDate()}/${d.getMonth()+1}</div>`; }
-function convertUnit(){ const v=parseFloat(document.getElementById('unitVal')?.value||0); const t=document.getElementById('unitType')?.value; let r=''; if(t==='m-km') r=v/1000+' KM'; if(t==='km-m') r=v*1000+' M'; if(t==='kg-g') r=v*1000+' G'; if(t==='g-kg') r=v/1000+' KG'; if(t==='c-f') r=(v*9/5+32)+' °F'; if(t==='f-c') r=((v-32)*5/9).toFixed(2)+' °C'; document.getElementById('unitOut').textContent=r; }
-function shorten(){ const url=document.getElementById('shortIn')?.value||''; if(!url) return; const hash=btoa(url).replace(/[^a-zA-Z0-9]/g,'').slice(0,6); const short='leha.os/'+hash; document.getElementById('shortOut').innerHTML=`<span style="font-weight:700">${short}</span><button onclick="navigator.clipboard.writeText('${short}')" style="padding:6px 12px;border-radius:999px;background:${getT().ink};color:${getT().paper};cursor:pointer;margin-left:8px">COPY</button>`; }
-function calcSale(){ const o=parseFloat(document.getElementById('origPrice')?.value||0), s=parseFloat(document.getElementById('salePrice')?.value||0); if(!o) return; const p=((o-s)/o*100).toFixed(1); document.getElementById('saleOut').textContent=`GIAM ${p}%`; }
-function calcBMI(){ const h=parseFloat(document.getElementById('bmiH')?.value||0)/100, w=parseFloat(document.getElementById('bmiW')?.value||0); if(!h||!w) return; const bmi=(w/(h*h)).toFixed(1); document.getElementById('bmiOut').textContent=`BMI ${bmi}`; }
-function genPass(){ const chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%'; let out=''; for(let i=0;i<16;i++) out+=chars[Math.floor(Math.random()*chars.length)]; document.getElementById('pwOut').value=out; }
+function previewPdfImages(files){
+  const container=document.getElementById('pdfFilePreview'); if(!container) return;
+  files.forEach(f=>{
+    const url=URL.createObjectURL(f); const div=document.createElement('div'); div.className='preview-item selected'; div.innerHTML=`<img src="${url}" style="width:100%;height:90px;object-fit:cover"><div style="font-size:10px;padding:4px">${f.name}</div>`; container.appendChild(div);
+  });
+}
+
+async function pdfActionLong(type){
+  const T=getT(); const out=document.getElementById('pdfOut'); const previewArea=document.getElementById('pdfPreviewArea');
+  if(type==='pdf-to-long'){
+    const fileInput=document.getElementById('pdfFiles'); const file=fileInput?.files?.[0];
+    if(!file) return out.textContent='CHỌN PDF 10 TRANG';
+    out.textContent='ĐANG ĐỌC PDF 10 TRANG - RENDER HD TỪNG TRANG...';
+    try{
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const arrayBuffer=await file.arrayBuffer();
+      const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+      const numPages=pdf.numPages;
+      out.textContent=`ĐÃ ĐỌC ${numPages} TRANG - ĐANG RENDER HD...`;
+      const pages=[];
+      for(let i=1;i<=numPages;i++){
+        const page=await pdf.getPage(i);
+        const viewport=page.getViewport({scale:3});
+        const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
+        canvas.width=viewport.width; canvas.height=viewport.height;
+        ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+        await page.render({canvasContext:ctx, viewport}).promise;
+        pages.push({canvas, w:canvas.width, h:canvas.height});
+      }
+      // Stitch into one long canvas
+      const maxW=Math.max(...pages.map(p=>p.w));
+      let totalH=0; pages.forEach(p=>{ const scale=maxW/p.w; totalH+=p.h*scale; });
+      const longCanvas=document.getElementById('pdfLongCanvas');
+      longCanvas.width=maxW; longCanvas.height=totalH;
+      const lctx=longCanvas.getContext('2d'); lctx.fillStyle='#FFFFFF'; lctx.fillRect(0,0,maxW,totalH); lctx.imageSmoothingEnabled=true; lctx.imageSmoothingQuality='high';
+      let y=0;
+      pages.forEach(p=>{ const scale=maxW/p.w; const nh=p.h*scale; lctx.drawImage(p.canvas,0,y,maxW,nh); y+=nh; });
+      // Export as PDF single page using pdf-lib
+      const { PDFDocument } = PDFLib;
+      const pdfDoc=await PDFDocument.create();
+      const page=pdfDoc.addPage([maxW, totalH]);
+      const pngImageBytes=await longCanvasToBytes(longCanvas);
+      const pngImage=await pdfDoc.embedPng(pngImageBytes);
+      page.drawImage(pngImage,{x:0,y:0,width:maxW,height:totalH});
+      const pdfBytes=await pdfDoc.save();
+      pdfLongBlob=new Blob([pdfBytes],{type:'application/pdf'});
+      pdfLongUrl=URL.createObjectURL(pdfLongBlob);
+      out.innerHTML=`✓ ĐÃ NỐI ${numPages} TRANG THÀNH 1 TRANG DÀI SINGLE PAGE<br>• Rộng: ${maxW}px • Cao: ${totalH}px • Cực nét HD<br>• Không cắt • Không vỡ • 1 file PDF duy nhất`;
+      document.getElementById('pdfDownloadBtn').style.display='inline-flex';
+      document.getElementById('pdfDownloadBtn').onclick=()=>{ const a=document.createElement('a'); a.href=pdfLongUrl; a.download='LEHA-PDF-DAI-SINGLE-PAGE.pdf'; a.click(); };
+      document.getElementById('pdfPreviewBtn').style.display='inline-flex';
+      document.getElementById('pdfPreviewBtn').onclick=()=>{ window.open(pdfLongUrl,'_blank'); };
+      previewArea.innerHTML=`<img src="${longCanvas.toDataURL('image/jpeg',0.9)}" style="width:100%;border-radius:12px;border:1px solid ${T.borderThin};margin-top:12px">`;
+    } catch(e){ out.textContent='LỖI PDF: '+e.message; console.error(e); }
+  } else if(type==='images-to-long'){
+    const files=[...(document.getElementById('pdfImages')?.files||[]), ...(document.getElementById('pdfFiles')?.files||[])].filter(f=>f.type.startsWith('image/'));
+    if(!files.length) return out.textContent='CHỌN ẢNH';
+    out.textContent=`ĐANG GHÉP ${files.length} ẢNH THÀNH PDF DÀI...`;
+    const images=[]; let loaded=0;
+    for(let f of files){
+      const img=new Image();
+      img.onload=()=>{ images.push({img,w:img.width,h:img.height}); loaded++; if(loaded===files.length) buildLongFromImages(images); };
+      img.src=URL.createObjectURL(f);
+    }
+    async function buildLongFromImages(imgs){
+      const maxW=Math.max(...imgs.map(i=>i.w));
+      let totalH=0; imgs.forEach(i=>{ const scale=maxW/i.w; totalH+=i.h*scale; });
+      const longCanvas=document.getElementById('pdfLongCanvas');
+      longCanvas.width=maxW; longCanvas.height=totalH;
+      const lctx=longCanvas.getContext('2d'); lctx.fillStyle='#fff'; lctx.fillRect(0,0,maxW,totalH); lctx.imageSmoothingQuality='high';
+      let y=0; imgs.forEach(i=>{ const scale=maxW/i.w; const nh=i.h*scale; lctx.drawImage(i.img,0,y,maxW,nh); y+=nh; });
+      const { PDFDocument } = PDFLib;
+      const pdfDoc=await PDFDocument.create();
+      const page=pdfDoc.addPage([maxW,totalH]);
+      const bytes=await longCanvasToBytes(longCanvas);
+      const png=await pdfDoc.embedPng(bytes);
+      page.drawImage(png,{x:0,y:0,width:maxW,height:totalH});
+      const pdfBytes=await pdfDoc.save();
+      pdfLongBlob=new Blob([pdfBytes],{type:'application/pdf'}); pdfLongUrl=URL.createObjectURL(pdfLongBlob);
+      out.innerHTML=`✓ ĐÃ GHÉP ${imgs.length} ẢNH THÀNH 1 PDF DÀI SINGLE PAGE<br>• ${maxW}x${totalH}px • HD`;
+      document.getElementById('pdfDownloadBtn').style.display='inline-flex';
+      document.getElementById('pdfDownloadBtn').onclick=()=>{ const a=document.createElement('a'); a.href=pdfLongUrl; a.download='LEHA-ANH-PDF-DAI.pdf'; a.click(); };
+      previewArea.innerHTML=`<img src="${longCanvas.toDataURL('image/jpeg',0.85)}" style="width:100%;border-radius:12px;border:1px solid ${T.borderThin};margin-top:12px">`;
+    }
+  }
+}
+
+function longCanvasToBytes(canvas){
+  return new Promise(res=>{
+    canvas.toBlob(blob=>{
+      const reader=new FileReader();
+      reader.onload=()=>{ const arr=new Uint8Array(reader.result); res(arr); };
+      reader.readAsArrayBuffer(blob);
+    }, 'image/png', 1.0);
+  });
+}
+
+// Rename preview
+let renameSelected=[];
+function previewRename(files){
+  const container=document.getElementById('renamePreview'); if(!container) return;
+  renameSelected=files;
+  container.innerHTML='';
+  files.forEach((f,i)=>{
+    const div=document.createElement('div'); div.style.cssText=`border:1px solid ${getT().borderThin};border-radius:10px;padding:8px;background:${getT().paper};font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`;
+    div.textContent=f.name; container.appendChild(div);
+  });
+}
+
+function renameBatch(){
+  const files=renameSelected.length?renameSelected:[...(document.getElementById('renameFiles')?.files||[])];
+  const out=document.getElementById('renameOut');
+  if(!files.length) return out.textContent='CHỌN FILE / FOLDER';
+  const prefix=document.getElementById('renamePrefix')?.value||''; const suffix=document.getElementById('renameSuffix')?.value||'';
+  const caseType=document.getElementById('renameCase')?.value||'keep'; const needNum=document.getElementById('renameNumber')?.checked;
+  let html=`<div style="font-weight:800;margin-bottom:8px">ĐÃ ĐỔI TÊN ${files.length} FILE:</div>`;
+  const blobs=[];
+  files.forEach((f,i)=>{
+    let name=f.name; let base=name.substring(0,name.lastIndexOf('.'))||name; let ext=name.includes('.')?name.substring(name.lastIndexOf('.')):'';
+    if(caseType==='lower') base=base.toLowerCase(); if(caseType==='upper') base=base.toUpperCase();
+    let newName=`${prefix}${needNum?String(i+1).padStart(2,'0')+'_':''}${base}${suffix}${ext}`;
+    html+=`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid ${getT().borderThin};font-size:11px"><span style="color:${getT().muted}">${f.name}</span><span style="font-weight:700">→ ${newName}</span></div>`;
+    blobs.push({file:f, newName});
+  });
+  out.innerHTML=html;
+  const downloadAllBtn=document.getElementById('renameDownloadAll'); if(downloadAllBtn) downloadAllBtn.style.display='inline-flex';
+  downloadAllBtn.onclick=()=>{ blobs.forEach((b,i)=>{ setTimeout(()=>{ const url=URL.createObjectURL(b.file); const a=document.createElement('a'); a.href=url; a.download=b.newName; a.click(); }, i*300); }); };
+}
+
+function calcAge(){ const dob=new Date(document.getElementById('dob')?.value); if(isNaN(dob)) return; const now=new Date(); let y=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) y--; document.getElementById('ageOut').innerHTML=`<div style="font-size:32px;font-weight:900">${y} TUỔI</div>`; }
+function showCalendar(){ const d=new Date(document.getElementById('calDate')?.value||new Date()); const T=getT(); document.getElementById('calOut').innerHTML=`<div style="font-size:18px;font-weight:900;color:${T.ink}">${d.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}</div>`; }
+function convertUnit(){ const v=parseFloat(document.getElementById('unitVal')?.value||0); const t=document.getElementById('unitType')?.value; let r=''; if(t==='m-km') r=v/1000+' KM'; if(t==='kg-g') r=v*1000+' G'; if(t==='c-f') r=(v*9/5+32)+' °F'; if(t==='f-c') r=((v-32)*5/9).toFixed(2)+' °C'; document.getElementById('unitOut').textContent=r; }
 
 renderApp();
-setInterval(()=>{ const els=document.querySelectorAll('[data-time]'); els.forEach(el=>el.textContent=getTime()); },1000);
 </script>
 </body>
 </html>
